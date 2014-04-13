@@ -26,6 +26,29 @@ def bootstrap(P, profile, infoDF, size=1000, load_bar=False):
 			sys.stdout.flush()
 	return DF
 
+def sided_std(series, mean):
+	dev = series - mean
+	var = (1./len(series)) * np.sum(dev**2.)
+	return np.sqrt(var)
+
+def find_stats(series):
+	mean = series.mean()
+	upper = series[series >= mean].values
+	lower = series[series <= mean].values
+	return sided_std(lower, mean), mean, sided_std(upper, mean)
+
+def dist(x, mean, std):
+	pre = 1./ std / np.sqrt(2*np.pi)
+	exponent = (x - mean) **2. / (2.* std * std)
+	return pre * np.exp(-exponent)
+
+def sided_dist(x, mean, std_low, std_high):
+	low = dist(x, mean, std_low)
+	high = dist(x, mean, std_high)
+	
+
+
+
 if __name__ == '__main__':
 	tables, headers = S.import_directory()
 	N = 2
@@ -35,6 +58,7 @@ if __name__ == '__main__':
 	start = time.clock()
 	data = bootstrap(result.params, target, info, size=100, load_bar=False)
 	print "\n will be finished in: %.2fs" % ((time.clock() - start) * len(tables))
+	print find_stats(data.MB)
 
 	hist, bins = np.histogram(data.MB.values, bins=50)
 	width = 1. * (bins[1] - bins[0])
