@@ -77,22 +77,43 @@ def define_boundaries(profile, window, chunk_size=2, clip_sig=1.):
 	inner_bound = med_Rs[brk_pos-1::-1][inner_bound]
 	outer_bound = med_Rs[brk_pos:][outer_bound]
 
-	plt.plot(med_Rs, gradients)
-	plt.axvline(R_break, linestyle='-')
-	colours = ['r', 'g']
-	for i in range(2):
-		plt.axhline(y=means[i]+stds[i], linestyle='--', color=colours[i])
-		plt.axhline(y=means[i]-stds[i], linestyle='--', color=colours[i])
-		plt.axhline(y=means[i], linestyle='-', color=colours[i])
-	plt.show()
+	# plt.plot(med_Rs, gradients)
+	# plt.axvline(R_break, linestyle='-')
+	# colours = ['r', 'g']
+	# for i in range(2):
+	# 	plt.axhline(y=means[i]+stds[i], linestyle='--', color=colours[i])
+	# 	plt.axhline(y=means[i]-stds[i], linestyle='--', color=colours[i])
+	# 	plt.axhline(y=means[i], linestyle='-', color=colours[i])
+	# plt.show()
 	R_window = [profile.R.values[w] for w in window]
 	return [R_window[0], inner_bound, outer_bound, R_window[1]], R_break, gradients, med_Rs
 
 def fit_truncated(profile, infoDF, break_bounds, break_R):
-	straight = lambda p, chnk: chnk[0] - p[0] - (p[1]*chnk[1])
-	fit_func = lambda c: leastsq(straight, [1.,1.], args=(c))[0][1]
-	gradients = map(fit_func, chunk_list)
-	
+	straight = lambda p, x,y,w: (y - (p[0] +  (1.086 * x / p[1]))) / w
+	R, M, M_err_up = profile.R.values, profile.M.values, profile.M_err_up.values
+	mask_inner = (R <= break_R) & (R >= break_bounds[0]) & (~np.isnan(M_err_up))
+	mask_outer = (R >= break_R) & (R <= break_bounds[-1]) & (~np.isnan(M_err_up))
+	Rs = [R[mask_inner], R[mask_outer]]
+	Ms = [M[mask_inner], M[mask_outer]]
+	M_errs = [M_err_up[mask_inner], M_err_up[mask_outer]]
+	return [leastsq(straight, [1.,1.], args=(Rs[i], Ms[i], M_errs[i]))[0] for i in range(2)]
+
+def plot_truncation(axis, fit_results, overlap_perc=0.05):
+	lims = axis.get_xlim()
+	straight = lambda p, x: p[0] +  (1.086 * x / p[1])
+	overlap = (lims[1] - lims[0]) * 0.5 * overlap_perc
+	print (lims[1] - lims[0]) * 0.5 * overlap_perc
+	get_overlapx = lambda r, h: np.sqrt(r * r * h * h / ((h * h) + (1.086**2.)))
+	overlap_in_x = [get_overlapx(overlap, p[1]) for p in fit_results]
+	print overlap_in_x
+	break_R = (fit_results[0][0] - fit_results[1][0]) / ((1.086/fit_results[1][1]) - (1.086/fit_results[0][1]))
+	print fit_results
+	print break_R
+	pltR1 = np.linspace(lims[0], break_R+(overlap_in_x[0]), 1000)
+	pltR2 = np.linspace(break_R-(overlap_in_x[1]), lims[1], 1000)
+	axis.plot(pltR1, straight(fit_results[0], pltR1), 'b-', linewidth=2)
+	axis.plot(pltR2, straight(fit_results[1], pltR2), 'b-', linewidth=2)
+
 if __name__ == '__main__':
 	tables, header = S.import_directory()
 	N = 242
@@ -102,11 +123,13 @@ if __name__ == '__main__':
 	pos, delta = find_bulge_cutoff(target, info, result)
 
 	bounds, brk, grads, grad_Rs = define_boundaries(target, [pos, -1])
-	print bounds
+	fits = fit_truncated(target, info, bounds, brk)
 
 	fig, ax, ax2 = F.plot_basic(result, target, info)
 	for i in [ax, ax2]:
 		i.axvline(x=brk)
 		for b in bounds:
 			i.axvline(x=b, linestyle='--')
+	plot_truncation(ax, fits)
+	ax.set_xlim(target.R.values[0], target.R.values[-1])
 	plt.show()
