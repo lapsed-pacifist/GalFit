@@ -2,6 +2,7 @@ import time
 import storage as S
 import numpy as np
 import matplotlib.pyplot as plt
+from fit import convert_mag, sersic
 
 def chunks(l, n):
     return [l[i:i+n] for i in range(0, len(l), n)]
@@ -47,11 +48,13 @@ def detect_sky(I):
 	clipped = clip(I[-pos:])
 	return np.mean(clipped), np.std(clipped), pos
 
-def find_mu_crit(I_corrected, sky_error, delta=0.2):
+def find_mu_crit(I_corrected, sky_error, zp, fit_params, delta=0.2):
 	"""gets the critical SB for a corrected profile, where the +-sigmas
 	differ by delta"""
 	plus, minus = I_corrected + sky_error, I_corrected - sky_error
-		
+	diff = convert_mag(plus, zp) - convert_mag(minus, zp)
+
+
 
 
 if __name__ == '__main__':
