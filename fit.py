@@ -1,5 +1,4 @@
 import storage as S
-from scipy.optimize import leastsq
 import numpy as np
 import matplotlib.pyplot as plt
 import bisect
@@ -84,14 +83,33 @@ def fit_bulge_disc(profile, infoDF):
 	P['BD_ratio'].value = 0.5
 
 	fix_params(P, ['BD_ratio', 'deltaRe'], True)
-	fitter = lm.Minimizer(sersic, P, fcn_args=(info.zp, profile.R.values, profile.I.values, profile.I_err.values))
+	fitter = lm.Minimizer(sersic, P, fcn_args=(infoDF.zp, profile.R.values, profile.I.values, profile.I_err.values))
 	fitter.leastsq()
 	return fitter
 
+def plot_basic(fit_result, profile, infoDF):
+	fig = plt.figure()
+	ax = fig.add_subplot(211)
+	ax.errorbar(profile.R, profile.M, yerr=(profile.M_err_down.values, profile.M_err_up.values), fmt='b.')
+	pltR = np.linspace(0,profile.R.values[-1], 1000)
+	bulge, disc = sersic(fit_result.params, infoDF.zp, pltR, comp=True, show=True)
+	
+	ax.plot(pltR, convert_mag(bulge, infoDF.zp), 'g:')
+	ax.plot(pltR, convert_mag(disc, infoDF.zp), 'r--')
+	ax.plot(pltR, convert_mag(bulge+disc, infoDF.zp), 'k--')
+	ax.set_title(str(infoDF.ID) + str(infoDF.cam) + str(infoDF.ax))
+	ax.set_ylim(35,15)
+
+	ax2 = fig.add_subplot(212)
+	bulge, disc = sersic(fit_result.params, infoDF.zp, profile.R.values, comp=True, show=True)
+	ax2.plot(profile.R, (profile.M - convert_mag(bulge + disc, infoDF.zp)) / profile.M_err_up, 'b.')
+	string = r'$\chi^{2}_{\nu} = $%.2f' % fit_result.redchi
+	ax2.text(0.98, 0.98, string, transform=ax2.transAxes, ha='right', va='top')
+	return fig, ax, ax2
 
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	N = 211
+	N = 201
 	target, info = tables[N], header.loc[N]
 	import time
 	s = time.clock()
@@ -99,22 +117,5 @@ if __name__ == '__main__':
 	print time.clock() - s
 	lm.report_fit(result.params, show_correl=False)
 
-
-	fig = plt.figure()
-	ax = fig.add_subplot(211)
-	ax.errorbar(target.R, target.M, yerr=(target.M_err_down.values, target.M_err_up.values), fmt='b.')
-	pltR = np.linspace(0,target.R.values[-1], 1000)
-	bulge, disc = sersic(result.params, info.zp, pltR, comp=True, show=True)
-	
-	ax.plot(pltR, convert_mag(bulge, info.zp), 'g:')
-	ax.plot(pltR, convert_mag(disc, info.zp), 'r--')
-	ax.plot(pltR, convert_mag(bulge+disc, info.zp), 'k--')
-	ax.set_title(str(info.ID) + str(info.cam) + str(info.ax))
-	ax.set_ylim(35,15)
-
-	ax2 = fig.add_subplot(212)
-	bulge, disc = sersic(result.params, info.zp, target.R.values, comp=True, show=True)
-	ax2.plot(target.R, target.M - convert_mag(bulge + disc, info.zp), 'b.')
-	string = r'$\chi^{2}_{\nu} = $%.2f' % result.redchi
-	ax2.text(0.98, 0.98, string, transform=ax2.transAxes, ha='right', va='top')
+	plot_basic(result, target, info)
 	plt.show()

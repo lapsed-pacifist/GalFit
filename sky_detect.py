@@ -4,8 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from fit import convert_mag, sersic
 
-def chunks(l, n):
-    return [l[i:i+n] for i in range(0, len(l), n)]
+def chunks(l, n, lower_bound=0):
+    chnks = [l[i:i+n] for i in range(0, len(l), n)]
+    if len(chnks[-1]) < lower_bound:
+    	steal = lower_bound - len(chnks[-1])
+    	chnks[-1] = np.append(chnks[-2][n-steal:], chnks[-1])
+    return chnks
 
 def get_stats(List, limit=0):
 	mean, std = np.mean(List), np.std(List)

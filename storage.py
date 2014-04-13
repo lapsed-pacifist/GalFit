@@ -92,12 +92,12 @@ if __name__ == '__main__':
 
 	# print tables[0][['I', 'I_err', 'M','M_err_down', 'M_err_up']].head(18)
 	import matplotlib.pyplot as plt
-	N = 20
-	plt.errorbar(tables[N].R.values, tables[N].M.values, yerr=[tables[N].M_err_down.values, tables[N].M_err_up.values], fmt='b.')
+	N = 211
+	plt.errorbar(tables[N].R.values, tables[N].I.values, yerr=tables[N].I_err.values, fmt='b.')
 	plt.axvline(x=tables[N].R.values[-info.sky_pos[N]], linestyle='--', color='r')
 	# plt.axhline(y=0)
 	plt.title(str(info.ID[N])+info.cam[N]+str(info.ax[N]))
-	plt.ylim([35,15])
+	# plt.ylim([35,15])
 	plt.show()
 
 	# plt.plot(tables[0].R, tables[0].M, 'b.')
