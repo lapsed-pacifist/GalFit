@@ -2,7 +2,9 @@ import time
 import storage as S
 import numpy as np
 import matplotlib.pyplot as plt
-from fit import convert_mag, sersic
+
+def convert_mag(I, zp):
+	return zp - (2.5 * np.log10(I))
 
 def chunks(l, n, lower_bound=0):
     chnks = [l[i:i+n] for i in range(0, len(l), n)]

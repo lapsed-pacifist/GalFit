@@ -109,13 +109,22 @@ def plot_basic(fit_result, profile, infoDF):
 
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	N = 242
-	target, info = tables[N], header.loc[N]
+	N_list = range(10)
 	import time
-	s = time.clock()
-	result = fit_bulge_disc(target, info)
-	print time.clock() - s
-	lm.report_fit(result.params, show_correl=False)
-
-	plot_basic(result, target, info)
-	plt.show()
+	import sys
+	times = []
+	for N in N_list:
+		s = time.clock()
+		target, info = tables[N], header.loc[N] 
+		result = fit_bulge_disc(target, info)
+		times.append(time.clock() - s)
+		sys.stdout.write('\r')
+		sys.stdout.write("[%-20s] %.1f%%" % ('='*int(20*N/len(N_list)), (100*N/len(N_list))))
+		sys.stdout.flush()
+		# lm.report_fit(result.params, show_correl=False)
+	mean, std = np.mean(times), np.std(times)
+	print "\n%.2f +/- %.2f s" % (mean, std)
+	print "total time: %.2f s" % (np.sum(times))
+	print "extrapolated: %.2f +/- %.2f hrs" % (mean*len(tables)*1000/60/60, std*len(tables)*1000/60/60)
+	# plot_basic(result, target, info)
+	# plt.show()
