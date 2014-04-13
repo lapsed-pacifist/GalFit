@@ -43,9 +43,15 @@ def find_cutoff(List, chunk_size, start_window_size=4, limit=0):
 	boundary = find_change(means, stds)
 	return (boundary*chunk_size) + start_window_size
 
-def clip(List, sig=3):
+def clip(List, sig=3, show=False):
+	if type(List) is not np.ndarray:
+		List = np.array(List)
 	m, s = np.mean(List), np.std(List)
 	return List[(List < m+(sig*s)) & (List > m-(sig*s))]
+
+def clipped_stats(List, sig=3):
+	X = clip(List, sig, show=True)
+	return np.mean(X), np.std(X)
 
 def detect_sky(I):
 	pos = find_cutoff(I[::-1], 3, 3, 0)

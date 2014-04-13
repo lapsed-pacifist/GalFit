@@ -3,10 +3,11 @@ import fit as F
 import lmfit as lm
 import numpy as np
 import matplotlib.pyplot as plt
-from sky_detect import chunks
+from sky_detect import chunks, clipped_stats
 from scipy.optimize import leastsq
 from scipy.ndimage.filters import median_filter as filt
 from scipy import interpolate
+import bisect
 
 def translate_x(x, point, dupl_pos=-1, round_method='right'):
 	"""converts a point in ordered list x to the appropriate index of x. 
@@ -35,7 +36,7 @@ def find_sky_cutoff(profile, infoDF, sigma=3.):
 	sky_cutoff = sigma * infoDF.sky_unc
 	print sky_cutoff
 
-def clean_profile(profile, window, spline_smooth=0, median_smooth_perc=0.1):
+def clean_profile(profile, window, spline_smooth=0, median_smooth_perc=0.05):
 	sl = slice(window[0], window[1])
 	mask = ~profile.M[sl].isnull().values
 	y = target.M[sl][mask].values
@@ -58,38 +59,54 @@ def get_local_derivative(profile, window, chunk_size=2):
 	return gradients, med_Rs
 
 def find_break(profile, window, chunk_size=2):
-	gradients, med_Rs = get_local_derivative(profile, window, chunk_size)
-	R_break = np.average(med_Rs, weights = 1. / (np.array(gradients)))
-	print R_break
-	# plt.plot(med_Rs, gradients)
-	# plt.show()
-	return R_break, gradients, med_Rs
+	grad_list, R_list = get_local_derivative(profile, window, chunk_size)
+	R_break = np.average(R_list, weights = 1. / (abs(np.array(grad_list))))
+	return R_break, grad_list, R_list
 
-def define_boundaries(profile, window, chunk_size=2):
+def define_boundaries(profile, window, chunk_size=2, clip_sig=1.):
 	R_break, gradients, med_Rs = find_break(profile, window, chunk_size)
-	inner, outer = gradients[:R_break], gradients[R_break:]
-	means = map(np.mean, [inner, outer])
-	stds = map(np.std, [inner, outer])
+	brk_pos = translate_x(med_Rs, R_break)
+	inner, outer = gradients[:brk_pos], gradients[brk_pos:]
+	means, stds = zip(*[clipped_stats(i, sig=clip_sig) for i in (inner, outer)])
+	if means[0] >= means[1]: #is inner > outer?
+		inner_bound = np.where(inner[::-1] > means[0] + stds[0])[0][0]
+		outer_bound = np.where(outer < means[1] - stds[1])[0][0]
+	else:
+		inner_bound = np.where(inner[::-1] < means[0] - stds[0])[0][0]
+		outer_bound = np.where(outer > means[1] + stds[1])[0][0]
+	inner_bound = med_Rs[brk_pos-1::-1][inner_bound]
+	outer_bound = med_Rs[brk_pos:][outer_bound]
 
+	plt.plot(med_Rs, gradients)
+	plt.axvline(R_break, linestyle='-')
+	colours = ['r', 'g']
+	for i in range(2):
+		plt.axhline(y=means[i]+stds[i], linestyle='--', color=colours[i])
+		plt.axhline(y=means[i]-stds[i], linestyle='--', color=colours[i])
+		plt.axhline(y=means[i], linestyle='-', color=colours[i])
+	plt.show()
+	R_window = [profile.R.values[w] for w in window]
+	return [R_window[0], inner_bound, outer_bound, R_window[1]], R_break, gradients, med_Rs
 
-
-
-
+def fit_truncated(profile, infoDF, break_bounds, break_R):
+	straight = lambda p, chnk: chnk[0] - p[0] - (p[1]*chnk[1])
+	fit_func = lambda c: leastsq(straight, [1.,1.], args=(c))[0][1]
+	gradients = map(fit_func, chunk_list)
+	
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	N = 180
+	N = 242
 	target, info = tables[N], header.loc[N]
 	result = F.fit_bulge_disc(target, info)
 	lm.report_fit(result.params, show_correl=False)
 	pos, delta = find_bulge_cutoff(target, info, result)
 
-	brk, grads, grad_Rs = find_break(target, [pos, -info.sky_pos])
+	bounds, brk, grads, grad_Rs = define_boundaries(target, [pos, -1])
+	print bounds
 
 	fig, ax, ax2 = F.plot_basic(result, target, info)
-	ax.axvline(x=target.R.values[pos])
-	ax.axvline(x=target.R.values[-info.sky_pos])
-	ax2.axvline(x=target.R.values[pos])
-	ax2.axvline(x=target.R.values[-info.sky_pos])
-	ax2.axvline(x=brk)
-	ax.axvline(x=brk)
+	for i in [ax, ax2]:
+		i.axvline(x=brk)
+		for b in bounds:
+			i.axvline(x=b, linestyle='--')
 	plt.show()

@@ -102,14 +102,14 @@ def plot_basic(fit_result, profile, infoDF):
 
 	ax2 = fig.add_subplot(212)
 	bulge, disc = sersic(fit_result.params, infoDF.zp, profile.R.values, comp=True, show=True)
-	ax2.plot(profile.R, (profile.M - convert_mag(bulge + disc, infoDF.zp)) / profile.M_err_up, 'b.')
+	ax2.plot(profile.R, (profile.M - convert_mag(bulge + disc, infoDF.zp)) / 1., 'b.')
 	string = r'$\chi^{2}_{\nu} = $%.2f' % fit_result.redchi
 	ax2.text(0.98, 0.98, string, transform=ax2.transAxes, ha='right', va='top')
 	return fig, ax, ax2
 
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	N = 201
+	N = 242
 	target, info = tables[N], header.loc[N]
 	import time
 	s = time.clock()
