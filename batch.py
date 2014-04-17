@@ -74,3 +74,6 @@ if __name__ == '__main__':
 	batch_fit(select, info, store, boot_size=100, load_bar=True)
 	store['info'] = info
 	print store.truncations.describe()
+
+
+# print truncs.rename(columns={'inner_M':'mu_inner', 'outer_M':'mu_outer', 'inner_Re':'h_inner', 'outer_Re':'h_outer'})
