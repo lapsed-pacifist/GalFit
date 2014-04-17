@@ -71,8 +71,8 @@ def calcBin(vx, vN, vCL = 95):
 
 
 if __name__ == '__main__':
-	N = 0
-	sample = 100
+	N = 40
+	sample = 69
 	a = calcBin(N, sample)
 	fract = N / float(sample)
 	print "%.3f + %.3f - %.3f" % (fract, a[1] - fract, fract - a[0])

@@ -1,14 +1,5 @@
-import storage as S
-import fit as F
-from multiprocessing import Pool 
+import pandas as pd
+pd.set_option('io.hdf.default_format','table')
 
-if __name__ == '__main__':
-	tables, header = S.import_directory()
-	N_list = range(3)
-
-	images = [(tables[N], header[N]) for N in N_list]
-
-	pool = Pool()
-	pool.map(F.fit_bulge_disc, images)
-	pool.close()
-	pool.join()
+store = pd.HDFStore('store_again_100.h5')
+print store.bootstraps[74].describe()

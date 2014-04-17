@@ -32,7 +32,10 @@ def sersic(p, zp, x, y=None, w=None, comp=False, show=False):
 		bB = get_b_n(nB)
 		bD = get_b_n(1.)
 		IeB = convert_I(meB, zp)
-		front = nB * gamma(2*nB) * np.exp(bB) / (bB ** (2*nB))
+		try:
+			front = nB * gamma(2*nB) * np.exp(bB) / (bB ** (2*nB))
+		except ValueError:
+			front = nB * gamma(2*nB) * np.exp(bB) / (-1.*(abs(bB) ** (2*nB)))
 		h = ReD / bD
 		IeD = front * ReB * ReB * IeB / BD_ratio / h / h / np.exp(bD)
 		B = IeB * np.exp(-1.* bB * ( ((x / ReB) ** (1 / nB)) - 1 ))
@@ -74,7 +77,7 @@ def fit_bulge_disc(profile, infoDF):
 			   ('ReB', 5., True, 0.1, 20.),
 			   ('nB', 4., True, 0.01, 10.),
 			   ('ReD', None, False, None, None, 'ReB + deltaRe'),
-			   ('deltaRe', 5., True, 0., 1000.),
+			   ('deltaRe', 5., True, 1., 20.),
 			   ('BD_ratio', 0.5, False, 0.001, 1.))
 	fitter = lm.Minimizer(sersic, P, fcn_args=(infoDF.zp, profile.R.values, profile.I.values, profile.I_err.values))
 	fitter.leastsq()
@@ -85,7 +88,13 @@ def fit_bulge_disc(profile, infoDF):
 	fix_params(P, ['BD_ratio', 'deltaRe'], True)
 	fitter = lm.Minimizer(sersic, P, fcn_args=(infoDF.zp, profile.R.values, profile.I.values, profile.I_err.values))
 	fitter.leastsq()
+
 	return fitter
+
+
+def redchi(y, model, weights, free_params):
+	resid = (y - model / weights) **2.
+	return np.sum(resid) / (len(y) - free_params)
 
 def plot_basic(fit_result, profile, infoDF):
 	fig = plt.figure()
@@ -107,24 +116,13 @@ def plot_basic(fit_result, profile, infoDF):
 	ax2.text(0.98, 0.98, string, transform=ax2.transAxes, ha='right', va='top')
 	return fig, ax, ax2
 
+
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	N_list = range(10)
-	import time
-	import sys
-	times = []
+	N_list = [72]
 	for N in N_list:
-		s = time.clock()
 		target, info = tables[N], header.loc[N] 
 		result = fit_bulge_disc(target, info)
-		times.append(time.clock() - s)
-		sys.stdout.write('\r')
-		sys.stdout.write("[%-20s] %.1f%%" % ('='*int(20*N/len(N_list)), (100*N/len(N_list))))
-		sys.stdout.flush()
-		# lm.report_fit(result.params, show_correl=False)
-	mean, std = np.mean(times), np.std(times)
-	print "\n%.2f +/- %.2f s" % (mean, std)
-	print "total time: %.2f s" % (np.sum(times))
-	print "extrapolated: %.2f +/- %.2f hrs" % (mean*len(tables)*1000/60/60, std*len(tables)*1000/60/60)
-	# plot_basic(result, target, info)
-	# plt.show()
+		lm.report_fit(result.params, show_correl=False)
+	plot_basic(result, target, info)
+	plt.show()

@@ -1,0 +1,16 @@
+GRAPHS
+
+sky:
+	graph of I with marked sky_determination zones
+	mark points outside the clipping zone
+
+truncation detection:
+similar to figure 6 in trujilo but with the inner and outer stds/means shown as well
+
+histogram of truncation strength (not just discrete types but a range i.e. delta h)
+trunc. strength vs radius etcs
+
+IDEA
+
+-ve values displayed using zp+2.5log10(I)
+

@@ -60,30 +60,35 @@ def detect_sky(I):
 	clipped = clip(I[-pos:])
 	return np.mean(clipped), np.std(clipped), pos
 
-def find_mu_crit(I_corrected, sky_error, zp, fit_params, delta=0.2):
+def find_mu_crit(profile, infoDF, delta=0.2):
 	"""gets the critical SB for a corrected profile, where the +-sigmas
 	differ by delta"""
-	plus, minus = I_corrected + sky_error, I_corrected - sky_error
-	diff = convert_mag(plus, zp) - convert_mag(minus, zp)
-
+	plus, minus = profile.I.values + infoDF.sky_unc, profile.I.values - infoDF.sky_unc
+	diff = np.abs(convert_mag(minus, infoDF.zp) - convert_mag(plus, infoDF.zp))
+	return profile.M.values[diff >  delta][0]
 
 
 
 if __name__ == '__main__':
 	tables, header = S.import_directory()
+	i=2
+	target, info = tables[i], header.loc[i]
 	print len(tables)
+	A = header.sky - header.sky_level
+	print A.describe()
+	crit = find_mu_crit(target, info)
 
-	select = [0]
-	for i in select:
-		target, info = tables[i], header.loc[i]
-		mean, std, cutoff = detect_sky(target.i_cts.values)
-		print mean, std, cutoff 
+	# select = [10]
+	# for i in select:
+	# 	target, info = tables[i], header.loc[i]
+	# 	mean, std, cutoff = detect_sky(target.i_cts.values)
+	# 	# print mean, std, cutoff 
 
-		lim = 25
-		plt.plot(target.R.values, target.i_cts.values[:]-mean, 'b.')
-		plt.axhline(y=0)
-		plt.axhline(y=0-std)
-		plt.axhline(y=0+std)
-		plt.axvline(x=target.R.values[-cutoff])
-		plt.title(str(info.ID)+info.cam+str(info.ax))
-		plt.show()
+	plt.plot(target.R.values, target.M.values, 'b.')
+	plt.axhline(y=crit)
+	# plt.axhline(y=0)
+	# plt.axhline(y=0-std)
+	# plt.axhline(y=0+std)
+	# plt.axvline(x=target.R.values[-cutoff])
+	# plt.title(str(info.ID)+info.cam+str(info.ax))
+	plt.show()
