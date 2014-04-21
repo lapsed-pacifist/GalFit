@@ -16,22 +16,30 @@ def extract_params(p):
 
 def batch_fit(table_list, infoDF, HDF, boot_size=1000, i_start=0, load_bar=True):
 	L = loadbar.loadbar(len(table_list))
+	trunc_fail = 0
 	for index,t in enumerate(table_list):
 		i = index + i_start
 		L.time()
+
 		normal_fit_result = F.fit_bulge_disc(t, infoDF.loc[i])
 		pars = extract_params(normal_fit_result.params)
 		pars.update({'flag':normal_fit_result.success})
+		try:
+			boundaries, brk_R, brk_pos, deltaB, trunc_pair, success = T.fit_truncation(t, infoDF.loc[i], normal_fit_result)
+		except TypeError:
+			boundaries, brk_R, brk_pos, deltaB, trunc_pair, success = 0.0, 0.0, 0.0, 0.0, 0.0, False
 
-		boundaries, brk_R, brk_pos, deltaB, trunc_pair, success = T.fit_truncation(t, infoDF.loc[i], normal_fit_result)
 		if not success:
-			t_vars = {'brk_R':np.nan, 'brk_pos':np.nan, 'deltaB':np.nan,'inner_M':np.nan, 'inner_Re':np.nan, 'outer_M':np.nan, 'outer_Re':np.nan}
+			trunc_fail += 1
+
+		if not success:
+			t_vars = {'brk_R':np.nan, 'brk_pos':np.nan, 'deltaB':np.nan,'inner_M':np.nan, 'inner_h':np.nan, 'outer_M':np.nan, 'outer_h':np.nan, 'success':False}
 			bound_d = {'b'+str(i):np.nan for i in range(4)}
 			t_vars.update(bound_d)
 		else:
 			inner, outer = trunc_pair
 			bound_d = {'b'+str(i):v for i,v in enumerate(boundaries)}
-			t_vars = {'brk_R':brk_R, 'brk_pos':brk_pos, 'deltaB':deltaB,'inner_M':inner[0], 'inner_Re':inner[1], 'outer_M':outer[0], 'outer_Re':outer[1]}
+			t_vars = {'brk_R':brk_R, 'brk_pos':brk_pos, 'deltaB':deltaB,'inner_M':inner[0], 'inner_h':inner[1], 'outer_M':outer[0], 'outer_h':outer[1], 'success':False}
 			t_vars.update(bound_d)
 
 		DF_boot = B.bootstrap(normal_fit_result.params, t, infoDF.loc[i], boot_size, False)
@@ -48,6 +56,7 @@ def batch_fit(table_list, infoDF, HDF, boot_size=1000, i_start=0, load_bar=True)
 			wp[i] = DF_boot
 		if load_bar:
 			L.progress()
+			sys.stdout.write('fails=%i   ' % trunc_fail)
 		HDF['bootstraps'] = wp
 
 # def batch_bootstrap(table_list, infoDF, HDF, size=1000):
@@ -66,12 +75,13 @@ def batch_fit(table_list, infoDF, HDF, boot_size=1000, i_start=0, load_bar=True)
 
 if __name__ == '__main__':
 	tables, info = S.import_directory()
-	store = pd.HDFStore('store_again_100.h5')
+	store_name = 'store_normal.h5'
+	store = pd.HDFStore(store_name)
 	if len(store.keys()) != 0:
-		print "Warning, store already exists! Data will be overwritten!"
+		print "Warning, store %s already exists! Data will be overwritten!" % (store_name)
 		raw_input("to continue press enter...")
 	select = tables[:]
-	batch_fit(select, info, store, boot_size=100, load_bar=True)
+	batch_fit(select, info, store, boot_size=1, load_bar=True)
 	store['info'] = info
 	print store.truncations.describe()
 

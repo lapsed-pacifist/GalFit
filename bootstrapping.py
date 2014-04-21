@@ -67,30 +67,29 @@ def bootstrap_trunc(P_list, R, M, MW, brk_pos, size=1000, load_bar=False):
 	outer = bootstrap_line(P_list[1], R[brk_pos:], M[brk_pos:], MW[brk_pos:], size, load_bar, 'out')
 	return pd.concat((inner, outer), axis=1)
 
-def sided_std(series, mean):
-	dev2 = (series - mean)**2.
-	var = (1./(len(series)-1)) * dev2.sum()
+def sided_std(DF, mean):
+	dev2 = (DF - mean)**2.
+	var = (1./(len(DF)-1)) * dev2.sum(axis=0)
 	return np.sqrt(var)
 
-def find_stats(series):
-	mean = series.mean()
-	upper = series[series >= mean].values
-	lower = series[series <= mean].values
-	return [sided_std(lower, mean), mean, sided_std(upper, mean)]
+def find_stats(DF):
+	mean = DF.mean(axis=0)
+	upper = DF[DF >= mean]
+	lower = DF[DF <= mean]
+	return [sided_std(lower, mean), sided_std(upper, mean)], mean
 
-# def dist(x, mean, std):
-# 	pre = 1./ std / np.sqrt(2*np.pi)
-# 	exponent = (x - mean) **2. / (2.* std * std)
-# 	return pre * np.exp(-exponent)
-
-# def sided_dist(mean, std_low, std_high, start=None, stop=None, num=1000):
-# 	if start is None: start = std_low
-# 	if stop is None: stop = std_high
-# 	X_low = np.linspace(start, mean, num/2)
-# 	X_high = np.linspace(mean, stop, num/2)
-# 	low = dist(X_low, mean, std_low)
-# 	high = dist(X_high, mean, std_high)
-# 	return np.append(low, high[1:]), np.append(X_low, X_high[1:])
+def average_boot(boot_panel):
+	for i, b in boot_panel.iteritems():
+	stds, mean = find_stats(b) #series
+	if i == 0:
+		meanDF = pd.DataFrame(mean).T
+		stdupDF = pd.DataFrame(stds[1]).T
+		stddownDF = pd.DataFrame(stds[0]).T
+	else:
+		meanDF = meanDF.append(mean, ignore_index=True)
+		stdupDF = stdupDF.append(stds[1], ignore_index=True)
+		stddownDF = stddownDF.append(stds[0], ignore_index=True)
+	return meanDF, stddownDF, stdupDF
 
 def group_lists(stat_list):
 	"""takes any number of lists of [-std, mean +std] and groups them if they overlap"""

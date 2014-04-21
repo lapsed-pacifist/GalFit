@@ -1,3 +1,5 @@
+from scipy.stats import norm
+from numpy import sqrt
 def binP(N, p, x1, x2):
 	p = float(p)
 	q = p/(1-p)
@@ -69,15 +71,25 @@ def calcBin(vx, vN, vCL = 95):
 			ul = v
 	return (dl, ul)
 
+def wilson(vx, vN, vCL=0.95):
+	a = 1-vCL
+	p = 1 - (a/2.)
+	z = norm.ppf(p)
+	phat = 1. * vx / vN
+	X = z * sqrt((phat * (1 - phat) / vN) + (z * z / 4 / vN/ vN))
+	invpre = 1 + (z * z / vN)
+	brak_pre = phat + (z * z / (2 * vN))
+	return (brak_pre - X) / invpre, (brak_pre + X) / invpre
+
 
 if __name__ == '__main__':
-	N = 40
-	sample = 69
-	a = calcBin(N, sample)
-	fract = N / float(sample)
-	print "%.3f + %.3f - %.3f" % (fract, a[1] - fract, fract - a[0])
+	a,b,c = 162., 77., 4.
+	import numpy as np
+	N = np.sum([a,b,c])
+	percentages = np.array([a,b,c]) / N
 
-	N = sample - N
-	a = calcBin(N, sample)
-	fract = N / float(sample)
-	print "%.3f + %.3f - %.3f" % (fract, a[1] - fract, fract - a[0])
+	confs = [wilson(i, N) for i in (a,b,c)]
+	confs = [(percentages[ind] - i[0], i[1] - percentages[ind]) for ind, i in enumerate(confs)]
+	
+	for i, C in enumerate(confs):
+		print " %s: %.2f + %.2f - %.2f" % (str(i), percentages[i], confs[i][1], confs[i][0])	

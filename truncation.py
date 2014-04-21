@@ -101,42 +101,65 @@ def define_boundaries(profile, window, chunk_size=2, clip_sig=1.):
 	R_window = [profile.R.values[w] for w in window]
 	return [R_window[0], inner_bound, outer_bound, R_window[1]], R_break, gradients, med_Rs
 
-def fit_truncated(profile, infoDF, break_bounds, break_R):
-	straight = lambda p, x,y,w: (y - (p['mu'].value +  (1.086 * x / p['h'].value))) / w
-	R, M, M_err_up = profile.R.values, profile.M.values, profile.M_err_up.values
-	mask_inner = (R <= break_R) & (R >= break_bounds[0]) & (~np.isnan(M_err_up))
-	mask_outer = (R >= break_R) & (R <= break_bounds[-1]) & (~np.isnan(M_err_up))
-	Rs = [R[mask_inner], R[mask_outer]]
-	Ms = [M[mask_inner], M[mask_outer]]
-	M_errs = [M_err_up[mask_inner], M_err_up[mask_outer]]
+def exp_Imod(mu0, h, x, zp):
+	I0 = 10 ** ((zp - mu0) / 2.5)
+	return I0 * np.exp(-1.* x / h)
+
+def mu_mod(mu0, h, x, zp):
+	return mu0 + (1.086 * x / h)
+
+def trunc_Imod(P, x, zp):
+	innerR = x[x<P['Rbr'].value]
+	outerR = x[x>=P['Rbr'].value]
+	innerI = exp_Imod(P['mu01'].value, 1./P['invh1'].value, innerR, zp)
+	outerI = exp_Imod(P['mu02'].value, P['h2'].value, outerR, zp)
+	return np.append(innerI, outerI)
+
+def trunc_mod(P, x, zp):
+	innerR = x[x<P['Rbr'].value]
+	outerR = x[x>=P['Rbr'].value]
+	innerM = mu_mod(P['mu01'].value, 1./P['invh1'].value, innerR, zp)
+	outerM = mu_mod(P['mu02'].value, P['h2'].value, outerR, zp)
+	return np.append(innerM, outerM)
+
+
+def fit_truncated(profile, infoDF, break_bounds, break_R, fix_brk=False):
+	R, I, W = profile.R.values, profile.M.values, profile.M_err_down.values
+	mask = (~np.isnan(I)) & (R > break_bounds[0])
+	R = R[mask]
+	I = I[mask]
+	W = W[mask]
+	res = lambda P, x,y,w,z: (y - trunc_mod(P, x, z)) / w
+	
 	P = lm.Parameters()
-	P.add_many(('mu', 1., True, 10., 30.), ('h', 1., True, 0.05, 30.))
-	ret = []
-	for i in range(2):
-		try:
-			result = lm.minimize(straight, P, args=(Rs[i], Ms[i], M_errs[i]))
-			result = np.array([result.params['mu'].value, result.params['h'].value])
-		except TypeError:
-			result = np.array([np.nan, np.nan])
-		ret.append(result)
-	return ret
+	hmin, hmax = 0.01, 20.0
+	mumin, mumax = 14.0, 30.0
 
+	P.add('mu02', value=25., vary=True, min=mumin, max=mumax)
+	P.add('h2', value= 5., min=hmin, max=hmax)
+	P.add('Rbr', value = break_R, vary=not fix_brk, min=break_bounds[1], max=break_bounds[2])
+	P.add('deltah', value=1./300, max=(1./hmin)-(1./hmax), min=(-1./hmin)+(1./hmax))
+	P.add('deltamu', expr='1.086 * Rbr * deltah')
+	P.add('invh1', expr='(1./h2) + deltah')
+	P.add('mu01', expr='mu02 - deltamu')
+	result = lm.minimize(res, P, args=(R, I, W, infoDF.zp))
+	innerresult = [P['mu01'].value, 1./P['invh1'].value]
+	outerresult = [P['mu02'].value, P['h2'].value]
+	# lm.report_fit(result.params, show_correl=False)
+	return np.array([innerresult, outerresult]), P['Rbr'].value
 
-def plot_truncation(axis, fit_results, overlap_perc=0.05):
+def plot_truncation(axis, fit_results, break_R):
 	lims = axis.get_xlim()
 	straight = lambda p, x: p[0] +  (1.086 * x / p[1])
-	overlap = (lims[1] - lims[0]) * 0.5 * overlap_perc
-	# print (lims[1] - lims[0]) * 0.5 * overlap_perc
-	get_overlapx = lambda r, h: np.sqrt(r * r * h * h / ((h * h) + (1.086**2.)))
-	overlap_in_x = [get_overlapx(overlap, p[1]) for p in fit_results]
-	# print overlap_in_x
-	break_R = (fit_results[0][0] - fit_results[1][0]) / ((1.086/fit_results[1][1]) - (1.086/fit_results[0][1]))
-	# print fit_results
-	# print break_R
-	pltR1 = np.linspace(lims[0], break_R+(overlap_in_x[0]), 1000)
-	pltR2 = np.linspace(break_R-(overlap_in_x[1]), lims[1], 1000)
-	axis.plot(pltR1, straight(fit_results[0], pltR1), 'b-', linewidth=2)
-	axis.plot(pltR2, straight(fit_results[1], pltR2), 'b-', linewidth=2)
+	# overlap = (lims[1] - lims[0]) * 0.5 * overlap_perc
+	# get_overlapx = lambda r, h: np.sqrt(r * r * h * h / ((h * h) + (1.086**2.)))
+	# overlap_in_x = [get_overlapx(overlap, p[1]) for p in fit_results]
+	# break_R = (fit_results[0][0] - fit_results[1][0]) / ((1.086/fit_results[1][1]) - (1.086/fit_results[0][1]))
+
+	pltR1 = np.linspace(lims[0], break_R+10., 1000)
+	pltR2 = np.linspace(break_R-10., lims[1], 1000)
+	axis.plot(pltR1, straight(fit_results[0], pltR1), 'r-', linewidth=1)
+	axis.plot(pltR2, straight(fit_results[1], pltR2), 'b-', linewidth=1)
 
 def trunc_model(fit_results, r_brk, R):
 	straight = lambda p, x: p[0] +  (1.086 * x / p[1])
@@ -149,21 +172,35 @@ def get_chi_trunc(normal_params, fit_results, r_brk, Y, R, W, zp):
 	return F.redchi(Y, B+D, W, 1.)
 
 def fit_truncation(profile, infoDF, fit_result):
-	pos, delta, success = find_bulge_cutoff(profile, infoDF, fit_result)
+	try:
+		pos, delta, success = find_bulge_cutoff(profile, infoDF, fit_result)
+	except TypeError:
+		return 0.0, 0.0, 0.0, 0.0, 0.0, False
 	if not success:
-		return np.nan, np.nan, np.nan, np.nan, np.nan, False
+		return 0.0, 0.0, 0.0, 0.0, 0.0, False
 	bounds, brk, grads, grad_Rs = define_boundaries(profile, [pos, -1])
-	fits = fit_truncated(profile, infoDF, bounds, brk)
-	return bounds, brk, pos, delta, fits, True
+	fits, R_brk = fit_truncated(profile, infoDF, bounds, brk)
+	return bounds, R_brk, pos, delta, fits, True
 
 
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	N = 72
+	N = 128
 	target, info = tables[N], header.loc[N]
+	print info.ID
+	# target.I = (target.i_cts - (info.sky_unc)) / info.scale / info.scale
+	# target.M = info.zp - (2.5 * np.log10(target.I))
+	# up = target.I + target.I_err
+	# down = target.I - target.I_err
+	# Mdown = info.zp - (2.5 * np.log10(abs(up)))
+	# Mup = info.zp - (2.5 * np.log10(abs(down)))
+	# target['M_err_down'] = abs(target.M - Mdown)
+	# target['M_err_up'] = abs(Mup - target.M)
+
 	result = F.fit_bulge_disc(target, info)
 	lm.report_fit(result.params, show_correl=False)
 	fit_bound, brk_R, brk_pos, deltaB, fit_pair, success = fit_truncation(target, info, result)
+	print fit_pair
 
 
 	# import bootstrapping as B
@@ -176,6 +213,8 @@ if __name__ == '__main__':
 		i.axvline(x=brk_R)
 		for b in fit_bound:
 			i.axvline(x=b, linestyle='--')
-	plot_truncation(ax, fit_pair)
+	plot_truncation(ax, fit_pair, brk_R)
 	ax.set_xlim(target.R.values[0], target.R.values[-1])
 	plt.show()
+
+

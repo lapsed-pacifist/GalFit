@@ -88,7 +88,12 @@ def fit_bulge_disc(profile, infoDF):
 	fix_params(P, ['BD_ratio', 'deltaRe'], True)
 	fitter = lm.Minimizer(sersic, P, fcn_args=(infoDF.zp, profile.R.values, profile.I.values, profile.I_err.values))
 	fitter.leastsq()
-
+	sb = sersic(P, infoDF.zp, profile.R.values, profile.I.values, profile.I_err.values, comp=False)
+	A = ((profile.I.values - sb) / profile.I_err.values)
+	print np.sum(A**2.)
+	from scipy import stats
+	print stats.kstest(A, 'norm')
+	
 	return fitter
 
 
