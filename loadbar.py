@@ -32,7 +32,7 @@ class loadbar():
 			return "%.f:%.f:%.f hrs" % (h, m, s)
 
 
-	def progress(self):
+	def progress(self, extra=''):
 		if self.nan: return
 		if self.ind == 0:
 			self.av_t = time.clock() - self.start_time
@@ -43,9 +43,11 @@ class loadbar():
 		sys.stdout.write('\r')
 		sys.stdout.write("[%-20s] %.1f%%" % ('='*int(20*self.ind/(self.length-1)), (100*self.ind/(self.length-1))))
 		sys.stdout.write(" left: %s" % (self.time_type(self.av_t*(self.length-self.ind))))
-		sys.stdout.write(" at %.1f sec/iter (i=%i)    " % (self.av_t, self.ind / self.i_divisor))
+		sys.stdout.write(" at %.1f sec/iter (i=%i)" % (self.av_t, self.ind / self.i_divisor))
+		sys.stdout.write(extra+ '       ')
 		sys.stdout.flush()
 		self.ind += 1
+		
 
 if __name__ == '__main__':
 	select = range(10)

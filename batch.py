@@ -60,7 +60,7 @@ def batch_fit(table_list, infoDF, HDF, boot_size=1000, i_start=0, load_bar=True)
 			sys.stdout.write('fails=%i   ' % trunc_fail)
 		HDF['bootstraps'] = wp
 
-def batch_truncation(table_list, infoDF, truncDF, HDF, boot_size=20, i_start=0, load_bar=True):
+def batch_truncation(table_list, infoDF, truncDF, HDF, boot_size=200, i_start=0, load_bar=True):
 	try:
 		if load_bar : L = loadbar.loadbar(len(table_list) * boot_size, boot_size)
 		else: L = None
@@ -78,7 +78,7 @@ def batch_truncation(table_list, infoDF, truncDF, HDF, boot_size=20, i_start=0, 
 
 if __name__ == '__main__':
 	tables, info = S.import_directory()
-	store_name = 'store_trunc_boot.h5'
+	store_name = 'store_trunc_boot200.h5'
 	store = pd.HDFStore(store_name)
 	truncs = pd.HDFStore('store_normal.h5', 'r').truncations
 	# if len(store.keys()) != 0:
@@ -90,6 +90,6 @@ if __name__ == '__main__':
 	# print store.truncations.describe()
 	
 	batch_truncation(tables[:], info, truncs, store, i_start=0, load_bar=True)
-	print store['trunc_boot'].describe()
+	print store['trunc_boot']
 
 # print truncs.rename(columns={'inner_M':'mu_inner', 'outer_M':'mu_outer', 'inner_Re':'h_inner', 'outer_Re':'h_outer'})

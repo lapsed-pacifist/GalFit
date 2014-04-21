@@ -149,7 +149,7 @@ def bootstrap_sky(profile, infoS, truncS, boot_size=50, LoadBar=None):
 			DF = pd.DataFrame(data=row, index=[0])
 		else:
 			DF = DF.append(row, ignore_index=True)
-		if LoadBar is not None: LoadBar.progress()
+		if LoadBar is not None: LoadBar.progress('%.i/%.i' % (i, boot_size))
 	return DF
 
 if __name__ == '__main__':

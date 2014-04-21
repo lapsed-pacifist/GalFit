@@ -8,6 +8,7 @@ import fit as F
 from scipy import stats
 import loadbar
 import sys
+import bootstrapping as B
 pd.set_option('io.hdf.default_format','table')
 
 def total_model(p, x, zp, comp=False):
@@ -107,7 +108,10 @@ def condense(profile_table, fitsDF, truncDF, infoDF):
 	col_names = base + ['brk'] + ['b'+str(i) for i in range(1,5)] + ['trunc_type', 'index']
 	return pd.DataFrame(DA, columns=col_names)
 
-# def total_classify(total_truncDF):
+def total_classify(total_truncDF, trunc_boot_panel, infoDF):
+	DF = total_truncDF.rename(columns={'brk':'brk_R'})
+	stds, mean = B.find_stats(trunc_boot_panel[0])
+	print stds[0]
 	
 
 
@@ -119,13 +123,9 @@ if __name__ == '__main__':
 	normal = store['truncations']
 	fits = store['fits']
 	normal = pd.concat([normal, header[['ID','cam','ax']]], axis=1)
-	# tot = condense(tables, fits, normal, header)
-	# store['total_truncations'] = tot
 	tot = store['total_truncations']
-	tot = pd.concat([tot, header[['ID','cam','ax']]], axis=1)
-	tot = tot.set_index(['ID', 'ax', 'cam'])
-	print tot.ix[1237665427553583111]
-
+	trunc_bootPanel = pd.HDFStore('store_trunc_boot.h5').trunc_boot
+	total_classify(tot, trunc_bootPanel, header)
 
 
 	# a = tot.trunc_type.hist()
