@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import loadbar
 pd.set_option('io.hdf.default_format','table')
 import sys
+import winsound
 
 def extract_params(p):
 	d = {name: par.value for name, par in p.iteritems()}
@@ -59,31 +60,36 @@ def batch_fit(table_list, infoDF, HDF, boot_size=1000, i_start=0, load_bar=True)
 			sys.stdout.write('fails=%i   ' % trunc_fail)
 		HDF['bootstraps'] = wp
 
-# def batch_bootstrap(table_list, infoDF, HDF, size=1000):
-# 	L = loadbar.loadbar(len(table_list))
-# 	for i,t in enumerate(table_list):
-# 		L.time()
-# 		P = HDF['fits'].copy()
-# 		DF = B.bootstrap(P, t, infoDF.loc[i], size, False)
-# 		if i == 0:
-# 			HDF['bootstrap'] = pd.Panel([DF])
-# 		else:
-# 			HDF['bootstrap'][i] = DF
-# 		L.progress()
-
+def batch_truncation(table_list, infoDF, truncDF, HDF, boot_size=20, i_start=0, load_bar=True):
+	try:
+		if load_bar : L = loadbar.loadbar(len(table_list) * boot_size, boot_size)
+		else: L = None
+		for i,t in enumerate(table_list):
+			index = i + i_start
+			DF_boot = B.bootstrap_sky(t, infoDF.loc[index], truncDF.loc[index], boot_size, L)
+			if index == 0:
+				wp = pd.Panel({0:DF_boot})
+			else:
+				wp[index] = DF_boot
+		HDF['trunc_boot'] = wp
+	except:
+		winsound.PlaySound('SystemHand', winsound.SND_ALIAS)
 
 
 if __name__ == '__main__':
 	tables, info = S.import_directory()
-	store_name = 'store_normal.h5'
+	store_name = 'store_trunc_boot.h5'
 	store = pd.HDFStore(store_name)
-	if len(store.keys()) != 0:
-		print "Warning, store %s already exists! Data will be overwritten!" % (store_name)
-		raw_input("to continue press enter...")
-	select = tables[:]
-	batch_fit(select, info, store, boot_size=1, load_bar=True)
-	store['info'] = info
-	print store.truncations.describe()
-
+	truncs = pd.HDFStore('store_normal.h5', 'r').truncations
+	# if len(store.keys()) != 0:
+	# 	print "Warning, store %s already exists! Data will be overwritten!" % (store_name)
+	# 	raw_input("to continue press enter...")
+	# select = tables[:]
+	# batch_fit(select, info, store, boot_size=1, load_bar=True)
+	# store['info'] = info
+	# print store.truncations.describe()
+	
+	batch_truncation(tables[:], info, truncs, store, i_start=0, load_bar=True)
+	print store['trunc_boot'].describe()
 
 # print truncs.rename(columns={'inner_M':'mu_inner', 'outer_M':'mu_outer', 'inner_Re':'h_inner', 'outer_Re':'h_outer'})

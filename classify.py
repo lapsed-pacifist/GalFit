@@ -107,7 +107,7 @@ def condense(profile_table, fitsDF, truncDF, infoDF):
 	col_names = base + ['brk'] + ['b'+str(i) for i in range(1,5)] + ['trunc_type', 'index']
 	return pd.DataFrame(DA, columns=col_names)
 
-def total_classify(total_truncDF):
+# def total_classify(total_truncDF):
 	
 
 

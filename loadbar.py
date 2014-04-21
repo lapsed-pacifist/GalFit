@@ -4,9 +4,10 @@ from numpy import floor
 
 class loadbar():
 	"""initiate with .time() at the start of each loop, do .progress at the end"""
-	def __init__(self, length):
+	def __init__(self, length, i_divisor=1.):
 		self.length = length
 		self.ind = 0
+		self.i_divisor = i_divisor
 		if self.length < 2:
 			self.nan = True
 			print "Loadbar not viable for length <2"
@@ -42,7 +43,7 @@ class loadbar():
 		sys.stdout.write('\r')
 		sys.stdout.write("[%-20s] %.1f%%" % ('='*int(20*self.ind/(self.length-1)), (100*self.ind/(self.length-1))))
 		sys.stdout.write(" left: %s" % (self.time_type(self.av_t*(self.length-self.ind))))
-		sys.stdout.write(" at %.1f sec/iter (i=%i)    " % (self.av_t, self.ind+1))
+		sys.stdout.write(" at %.1f sec/iter (i=%i)    " % (self.av_t, self.ind / self.i_divisor))
 		sys.stdout.flush()
 		self.ind += 1
 

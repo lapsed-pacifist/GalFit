@@ -6,6 +6,7 @@ import pandas as pd
 import sys
 from scipy.optimize import leastsq
 import time
+import truncation as T
 
 MAXFEV = 1000
 
@@ -80,15 +81,15 @@ def find_stats(DF):
 
 def average_boot(boot_panel):
 	for i, b in boot_panel.iteritems():
-	stds, mean = find_stats(b) #series
-	if i == 0:
-		meanDF = pd.DataFrame(mean).T
-		stdupDF = pd.DataFrame(stds[1]).T
-		stddownDF = pd.DataFrame(stds[0]).T
-	else:
-		meanDF = meanDF.append(mean, ignore_index=True)
-		stdupDF = stdupDF.append(stds[1], ignore_index=True)
-		stddownDF = stddownDF.append(stds[0], ignore_index=True)
+		stds, mean = find_stats(b) #series
+		if i == 0:
+			meanDF = pd.DataFrame(mean).T
+			stdupDF = pd.DataFrame(stds[1]).T
+			stddownDF = pd.DataFrame(stds[0]).T
+		else:
+			meanDF = meanDF.append(mean, ignore_index=True)
+			stdupDF = stdupDF.append(stds[1], ignore_index=True)
+			stddownDF = stddownDF.append(stds[0], ignore_index=True)
 	return meanDF, stddownDF, stdupDF
 
 def group_lists(stat_list):
@@ -119,6 +120,37 @@ def combine_boot(*boot):
 		boot_list.append(np.hstack(tuple(boots)))
 	return boot_list
 
+def change_sky(profile, infoS, sigma=1.):
+	sky = infoS.sky_unc * sigma
+	profile.I = (profile.i_cts + sky) / infoS.scale / infoS.scale
+	profile.M = infoS.zp - (2.5 * np.log10(profile.I))
+	up = profile.I + profile.I_err
+	down = profile.I - profile.I_err
+	Mdown = infoS.zp - (2.5 * np.log10(abs(up)))
+	Mup = infoS.zp - (2.5 * np.log10(abs(down)))
+	profile['M_err_down'] = abs(profile.M - Mdown)
+	profile['M_err_up'] = abs(Mup - profile.M)
+	return profile
+
+def bootstrap_sky(profile, infoS, truncS, boot_size=50, LoadBar=None):
+	r = np.linspace(-1., 1., boot_size)
+	bounds = truncS[['b0', 'b1', 'b2', 'b3']].values
+	for i, sky in enumerate(r):
+		if LoadBar is not None: LoadBar.time()
+		adj_prof = change_sky(profile.copy(), infoS, sigma=sky * infoS.sky_unc)
+		try:
+			pars, brk = T.fit_truncated(adj_prof, infoS, bounds, truncS.brk_R, fix_brk=False)
+			row = np.append(np.ravel(pars), np.array([brk, sky]))
+		except TypeError:
+			row = np.ones((6)) * np.nan	
+		columns=['M1', 'h1', 'M2', 'h2', 'brk_R', 'sky_perc']
+		row = {columns[i]: row[i] for i in range(6)}	
+		if i == 0:
+			DF = pd.DataFrame(data=row, index=[0])
+		else:
+			DF = DF.append(row, ignore_index=True)
+		if LoadBar is not None: LoadBar.progress()
+	return DF
 
 if __name__ == '__main__':
 	tables, headers = S.import_directory()
