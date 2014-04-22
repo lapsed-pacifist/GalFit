@@ -124,7 +124,7 @@ def plot_basic(fit_result, profile, infoDF):
 
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	N_list = [72]
+	N_list = [0]
 	for N in N_list:
 		target, info = tables[N], header.loc[N] 
 		result = fit_bulge_disc(target, info)
