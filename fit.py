@@ -90,7 +90,7 @@ def fit_bulge_disc(profile, infoDF):
 	fitter.leastsq()
 	sb = sersic(P, infoDF.zp, profile.R.values, profile.I.values, profile.I_err.values, comp=False)
 	A = ((profile.I.values - sb) / profile.I_err.values)
-	print np.sum(A**2.)
+	print np.sum(A**2.) / (5+len(profile.I.values)), fitter.redchi
 	from scipy import stats
 	print stats.kstest(A, 'norm')
 	
@@ -99,7 +99,7 @@ def fit_bulge_disc(profile, infoDF):
 
 def redchi(y, model, weights, free_params):
 	resid = (y - model / weights) **2.
-	return np.sum(resid) / (len(y) - free_params)
+	return np.sum(resid) / (len(y) + free_params)
 
 def plot_basic(fit_result, profile, infoDF):
 	fig = plt.figure()
@@ -124,7 +124,7 @@ def plot_basic(fit_result, profile, infoDF):
 
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	N_list = [0]
+	N_list = [10]
 	for N in N_list:
 		target, info = tables[N], header.loc[N] 
 		result = fit_bulge_disc(target, info)

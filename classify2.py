@@ -50,7 +50,16 @@ def classify_type(strengthDF):
 	types = pd.DataFrame({'untruncated': is_untrunc, 'upbended':is_upbend, 'downbended':is_downbend})
 	return strengthDF.join(types)
 
-def graph_par(totalDF, x, y, ax=None):
+def bin(x, bins=None, n=None):
+	"""rebins data and produces mask for other arrays
+	Bins is a list of values corresponding to boundaries of the bins (ends have to be included!)"""
+	if bins is None:
+		bins = range(x[0], x[-1], n)
+
+	chks = [np.where(x[bins[i]] <= x <= x[bins[i+1]]) for i in range(len(bins)-1)]
+
+
+def graph_par(totalDF, x, y, bins=None, ax=None, err=True):
 	if ax is None:
 		fig = plt.figure()
 		ax = fig.add_subplot(111)
@@ -59,7 +68,10 @@ def graph_par(totalDF, x, y, ax=None):
 		xerr = (totalDF[x+'_low'],totalDF[x+'_high'])
 	if y+'_low' in totalDF.columns:
 		yerr = (totalDF[y+'_low'], totalDF[y+'_high'])
-	ax.errorbar(totalDF[x], totalDF[y], yerr=yerr, xerr=xerr, fmt='b.')
+	if err:
+		ax.errorbar(totalDF[x], totalDF[y], yerr=yerr, xerr=xerr, fmt='b.')
+	else:
+		ax.plot(totalDF[x], totalDF[y], 'b.')
 	ax.set_ylabel(y)
 	ax.set_xlabel(x)
 	return fig, ax
@@ -83,7 +95,7 @@ if __name__ == '__main__':
 	# total = fits.join(truncation)
 	total = store_fits['mainDF']
 	
-	graph_par(total, 'r_clust', 'brk_R')	
+	graph_par(total, 'brk_R', 'h2', err=False)	
 	plt.show()
 
 

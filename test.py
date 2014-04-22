@@ -1,16 +1,19 @@
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import storage as S
 
-def hist(x, n_bin, axis):
-	hist, bins = np.histogram(x, bins=50)
-	width = 1. * (bins[1] - bins[0])
-	center = (bins[:-1] + bins[1:]) / 2
-	axis.bar(center, hist, align='center', width=width)
 
-if __name__ == '__main__':	
+def bin(x, bins=None, n=None):
+	"""rebins data and produces mask for other arrays
+	Bins is a list of values corresponding to boundaries of the bins (ends have to be included!)"""
+	if bins is None:
+		bins = np.arange(x[0], x[-1], n)
 
-	store = pd.HDFStore('store_trunc_boot200.h5', 'r')
-	boot = store.trunc_boot
-	print boot[0].
+	chks = [np.where((x <= x[bins[i+1]]) | x >= x[bins[i]]) for i in range(len(bins)-1)]
+	return chks
+
+
+
+x = np.linspace(0, 20)
+n = 5
+
+print x
+print bin(x, n=n)

@@ -61,10 +61,14 @@ def convert_I_err(table_list, infoDF):
 	for i, T in enumerate(table_list):
 		up = T.I + T.I_err
 		down = T.I - T.I_err
+
 		Mdown = infoDF.zp[i] - (2.5 * np.log10(abs(up)))
-		Mup = infoDF.zp[i] - (2.5 * np.log10(abs(down)))
+		Mup = infoDF.zp[i] - (2.5 * np.log10(down))
 		T['M_err_down'] = abs(T.M - Mdown)
 		T['M_err_up'] = abs(Mup - T.M)
+		for i, v in enumerate(T['M_err_up']):
+			if np.isnan(v):
+				T['M_err_up'][i] = T['M_err_down'][i]
 	return table_list
 
 def get_errors(table_list, infoDF):
@@ -74,12 +78,14 @@ def get_errors(table_list, infoDF):
 		elif infoDF.cam[i] == 'mega':
 			t, G = 35., 1.7
 		else: t, G = 1.,1.
-		phot_err = np.sqrt(((T.i_cts + infoDF.sky) / 1.) * G)
-		i_err = phot_err * 1. / (G)
-		I_err = (i_err) / (infoDF.scale[i] ** 2.)
-		total = np.sqrt((I_err **2.) + ((T.i_cts_err / (infoDF.scale[i]**2.)) **2.) + (infoDF.sky_unc[i] / (infoDF.scale[i]**2.)))
-		# total = [i if i > 1000. else 1000. for i in total]
-		T['I_err'] = total
+		phot_err = np.sqrt(((T.i_cts + infoDF.sky_level) / 1.) * G)
+		i_err = phot_err * 1. * G
+		# I_err = (i_err) / (infoDF.scale[i] ** 2.)
+		total_i_err = np.sqrt((i_err**2.) + (T.i_cts_err**2.) + (infoDF.sky_unc**2.))
+		# total_I_err = np.sqrt((I_err **2.) + ((T.i_cts_err / (infoDF.scale[i]**2.)) **2.) + (infoDF.sky_unc[i] / (infoDF.scale[i]**2.)))
+		total_I_err = total_i_err / infoDF.scale[i] / infoDF.scale[i]
+		T['I_err'] = total_I_err
+		T['i_cts_err_sky'] = total_i_err
 	return table_list
 
 
@@ -90,9 +96,10 @@ if __name__ == '__main__':
 	# 	print info.loc[i].ax, info.loc[i].cam
 	
 
-	# print tables[0][['I', 'I_err', 'M','M_err_down', 'M_err_up']].head(18)
+	print tables[0][tables[0].R > 12][['I', 'I_err', 'M','M_err_down', 'M_err_up']].head(1)
+	print info.zp[0]
 	import matplotlib.pyplot as plt
-	N = 211
+	N = 0
 	plt.errorbar(tables[N].R.values, tables[N].I.values, yerr=tables[N].I_err.values, fmt='b.')
 	plt.axvline(x=tables[N].R.values[-info.sky_pos[N]], linestyle='--', color='r')
 	# plt.axhline(y=0)
