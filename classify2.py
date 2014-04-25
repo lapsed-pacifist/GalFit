@@ -3,6 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import storage as S
 import bootstrapping as B
+from fit import get_b_n
+from scipy.special import gammainc, gamma
+from fit import convert_I
+import conf_test
+from  scipy.optimize import leastsq
 DIR = 'repository'
 
 def get_stats_dict(bootP):
@@ -58,31 +63,82 @@ def bin(x, bins=None, n=None):
 
 	chks = [np.where(x[bins[i]] <= x <= x[bins[i+1]]) for i in range(len(bins)-1)]
 
+def correl(X, Y, Xerr, Yerr):
+	straight = lambda p, x, y, w: (y - (p[0]* x) - p[1]) / w
+	pars = leastsq(straight, [1.,1.], args=(X, Y, Yerr))[0]
+	return pars[0]
 
-def graph_par(totalDF, x, y, bins=None, ax=None, err=True):
-	if ax is None:
-		fig = plt.figure()
-		ax = fig.add_subplot(111)
-	xerr, yerr = [None] * 2
-	if x+'_low' in totalDF.columns:
-		xerr = (totalDF[x+'_low'],totalDF[x+'_high'])
-	if y+'_low' in totalDF.columns:
-		yerr = (totalDF[y+'_low'], totalDF[y+'_high'])
-	if err:
-		ax.errorbar(totalDF[x], totalDF[y], yerr=yerr, xerr=xerr, fmt='b.')
+def graph_par(totalDF, x, y, bins=None, ax=None, err=True, truncated_only=False):
+	if truncated_only:
+		t = totalDF[totalDF.untruncated != False]
 	else:
-		ax.plot(totalDF[x], totalDF[y], 'b.')
+		t = totalDF
+	if ax is None:
+		f = plt.figure()
+		ax = fig.add_subplot(111)
+	else:
+		f = None
+	xerr, yerr = [None] * 2
+	if x+'_low' in t.columns:
+		xerr = (t[x+'_low'],t[x+'_high'])
+	if y+'_low' in t.columns:
+		yerr = (t[y+'_low'], t[y+'_high'])
+	if err:
+		ax.errorbar(t[x], t[y], yerr=yerr, xerr=xerr, fmt='b.', ecolor='0.75')
+	else:
+		ax.plot(t[x], t[y], 'b.')
 	ax.set_ylabel(y)
 	ax.set_xlabel(x)
-	return fig, ax
+	mask = ~t[x].isnull() & ~t[y].isnull()
+	if xerr is not None: mask = mask & ~xerr[0].isnull() & ~xerr[1].isnull()
+	if yerr is not None: mask = mask & ~yerr[0].isnull() & ~yerr[1].isnull()
+	X = t[x][mask].values
+	Y = t[y][mask].values
+	# P = correl(X,Y, xerr, yerr)
+	# ax.text(0.98, 0.98, 'P = %.2f' % P[0], transform=ax.transAxes)
+	if fig is None:
+		return ax
+	else:
+		return f, ax
+
+def new_BD_ratio(P, zp):
+	MB, ReB, nB, M1, M2, h1, h2, R_brk = P.values
+	I01, I02, IeB = convert_I(M1, zp), convert_I(M2, zp), convert_I(MB, zp)
+	disc1 = I01 * h1 * h1 * gammainc(2., R_brk / h1)
+	disc2 = I02 * h2 * h2 * (1 - gammainc(2., R_brk / h2))
+	bn = get_b_n(nB)
+	bulge = np.exp(bn) * IeB * ReB * ReB * gamma((2 * nB) + 1) / (bn**(2.*nB))
+	return bulge / (2* (disc2 + disc1))
+
+def get_BD_ratios(totalS, zp):
+	cols = ['MB', 'ReB', 'nB', 'M1', 'M2', 'h1', 'h2', 'R_brk']
+	BD = new_BD_ratio(totalS[cols], zp)
+	low = new_BD_ratio(totalS[[i+'_low' for i in cols]], zp)
+	high = new_BD_ratio(totalS[[i+'_high' for i in cols]], zp)
+	return BD, low, high
+
+def graph_type_hist(totalDF):
+	fig = plt.figure()
+	ax = fig.add_subplot(111)
+	mine = totalDF[['untruncated', 'downbended', 'upbended']].sum().values
+	erwin = [0.458*55., 0., (1-0.458)*55.] # unt, down, up
+	erwin_errs = [conf_test.wilson(i, 55, 0.68) for i in erwin]
+	mine_errs = [conf_test.wilson(i, float(len(totalDF)), 0.68) for i in mine]
+	
+	ind = np.arange(3)
+	width = 0.5
+	rects1 = ax.bar(ind, np.array(mine)/np.sum(mine), width, color='0.8', yerr=zip(*mine_errs))
+	rects2 = ax.bar(ind+width, np.array(erwin)/55., width, color='0.3', yerr=zip(*erwin_errs))
 
 
 if __name__ == '__main__':
 	# clust_data = pd.read_table(DIR+'\\fullcas_sky.dat', skiprows=0,skipinitialspace=True, escapechar='#',delimiter='\t')
 	# Rs = clust_data.set_index('ID').r_clust
-	# tables, header = S.import_directory()
-	# store_trunc = pd.HDFStore('store_trunc_boot200.h5', 'r')
-	store_fits = pd.HDFStore('store_again.h5', 'r')
+	tables, header = S.import_directory()
+	store_trunc = pd.HDFStore('fixed_truncations.h5')
+
+	# store_fits = pd.HDFStore('store_again.h5', 'r')
+
 	# boot_tr = store_trunc.trunc_boot
 	# boot_ft = store_fits.bootstraps
 	# boot_comb_tr = raw_combine(boot_tr, header)
@@ -93,14 +149,34 @@ if __name__ == '__main__':
 	# fits = pd.DataFrame(get_stats_dict(boot_comb_ft)).join(Rs)
 
 	# total = fits.join(truncation)
-	total = store_fits['mainDF']
+	total = store_trunc['mainDF']
+	# print total.loc[1237667322723827758]
+	# print total.BD_ratio.iloc[0]
+	# print get_BD_ratios(total.iloc[0], header.zp[0])
 	
-	graph_par(total, 'brk_R', 'h2', err=False)	
+	# graph_par(total, 'r_clust', 'strength', err=True, truncated_only=True)
+	fig = plt.figure()	
+	fig.set_facecolor('white')
+	t = total[(total.h1 > 0) & (total.untruncated==True)]
+	x, y = 'r_clust', 'brk_R'
+	graph_par(t, x, y, ax=fig.add_subplot(121))
+	t = total[(total.h1 > 0) & (total.untruncated==False)]
+	graph_par(t, x, y, ax=fig.add_subplot(122))
+
+	# t = total[(total.h1 > 0) & (total.untruncated==False)]
+	# t.MB.hist(ax=fig.add_subplot(121))
+	# plt.title('truncated')
+
+	# t = total[(total.h1 > 0) & (total.untruncated==True)]
+	# t.MB.hist(ax=fig.add_subplot(122))
+	# plt.title('untruncated')
+
+	# ff = lambda x: '%.2f' % (x)
+	# print t[['MB','ReB','nB', 'BD_ratio']].describe().to_latex(float_format=ff)
+	# plt.ylabel('Number')
+	# plt.xlabel('$h_{outer}$[arcsec]', labelpad=0.5)
+	# graph_type_hist(total)
 	plt.show()
 
 
-	# print C.downbended.sum(), C.untruncated.sum(), C.upbended.sum()
-	# C.upbended.hist()
-	# plt.show()
-	
-	
+

@@ -8,6 +8,8 @@ from scipy.optimize import leastsq
 from scipy.ndimage.filters import median_filter as filt
 from scipy import interpolate
 import bisect
+from matplotlib import rc
+rc('font',**{'family':'serif','serif':['Times New Roman'], 'size':18})
 
 def translate_x(x, point, dupl_pos=-1, round_method='right'):
 	"""converts a point in ordered list x to the appropriate index of x. 
@@ -73,8 +75,9 @@ def define_boundaries(profile, window, chunk_size=2, clip_sig=1.):
 	brk_pos = translate_x(med_Rs, R_break)
 	inner, outer = gradients[:brk_pos], gradients[brk_pos:]
 	means, stds = zip(*[clipped_stats(i, sig=clip_sig) for i in (inner, outer)])
-	# plt.plot(med_Rs, gradients)
-	# plt.show()
+	# plt.plot(med_Rs, gradients, 'b.')
+	# plt.axvline(R_break)
+	plt.show()
 	if means[0] >= means[1]: #is inner > outer?
 		inner_bound = np.where(inner[::-1] > means[0] + stds[0])
 		outer_bound = np.where(outer < means[1] - stds[1])
@@ -89,14 +92,21 @@ def define_boundaries(profile, window, chunk_size=2, clip_sig=1.):
 		outer_bound = med_Rs[brk_pos:][outer_bound[0][0]]
 	except IndexError:
 		outer_bound = med_Rs[-1]
-
-	# plt.plot(med_Rs, gradients)
-	# plt.axvline(R_break, linestyle='-')
+	# fig = plt.figure()
+	# fig.set_facecolor('white')
+	# ax = fig.add_subplot(111)
+	# ax.plot(med_Rs, gradients, 'b.')
+	# ax.axvline(R_break, linestyle='-')
 	# colours = ['r', 'g']
+	# rs = (med_Rs[0], R_break, med_Rs[-1])
 	# for i in range(2):
-	# 	plt.axhline(y=means[i]+stds[i], linestyle='--', color=colours[i])
-	# 	plt.axhline(y=means[i]-stds[i], linestyle='--', color=colours[i])
-	# 	plt.axhline(y=means[i], linestyle='-', color=colours[i])
+	# 	y=[means[i]+stds[i], means[i]-stds[i], means[i]]
+	# 	ax.plot(rs[i:i+2], [y[0]]*2, linestyle='--', color=colours[i])
+	# 	ax.plot(rs[i:i+2], [y[1]]*2, linestyle='--', color=colours[i])
+	# 	ax.plot(rs[i:i+2], [y[2]]*2, linestyle='--', color=colours[i])
+	# 	ax.fill_between(rs[i:i+2], y[0], y[1], alpha=0.1, color=colours[i])
+	# ax.set_ylabel('local h [arcsec]')
+	# ax.set_xlabel('R [arcsec]')
 	# plt.show()
 	R_window = [profile.R.values[w] for w in window]
 	return [R_window[0], inner_bound, outer_bound, R_window[1]], R_break, gradients, med_Rs
@@ -123,8 +133,10 @@ def trunc_mod(P, x, zp):
 	return np.append(innerM, outerM)
 
 
-def fit_truncated(profile, infoDF, break_bounds, break_R, fix_brk=False):
+def fit_truncated(profile, infoDF, fit_result, break_bounds, break_R, fix_brk=False):
 	R, I, W = profile.R.values, profile.M.values, profile.M_err_down.values
+	bulge, _ = F.sersic(fit_result, infoDF.zp, R, comp=True)
+	I = F.convert_mag(F.convert_I(I, infoDF.zp) - bulge, infoDF.zp)
 	mask = (~np.isnan(I)) & (R > break_bounds[0])
 	R = R[mask]
 	I = I[mask]
@@ -179,24 +191,16 @@ def fit_truncation(profile, infoDF, fit_result):
 	if not success:
 		return 0.0, 0.0, 0.0, 0.0, 0.0, False
 	bounds, brk, grads, grad_Rs = define_boundaries(profile, [pos, -1])
-	fits, R_brk = fit_truncated(profile, infoDF, bounds, brk)
+	fits, R_brk = fit_truncated(profile, infoDF, fit_result.params, bounds, brk)
 	return bounds, R_brk, pos, delta, fits, True
 
 
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	N = 128
+	# N = header[header.ID == 1237665440442089583].index[2]
+	N = 68
 	target, info = tables[N], header.loc[N]
 	print info.ID
-	# target.I = (target.i_cts - (info.sky_unc)) / info.scale / info.scale
-	# target.M = info.zp - (2.5 * np.log10(target.I))
-	# up = target.I + target.I_err
-	# down = target.I - target.I_err
-	# Mdown = info.zp - (2.5 * np.log10(abs(up)))
-	# Mup = info.zp - (2.5 * np.log10(abs(down)))
-	# target['M_err_down'] = abs(target.M - Mdown)
-	# target['M_err_up'] = abs(Mup - target.M)
-
 	result = F.fit_bulge_disc(target, info)
 	lm.report_fit(result.params, show_correl=False)
 	fit_bound, brk_R, brk_pos, deltaB, fit_pair, success = fit_truncation(target, info, result)
@@ -206,10 +210,8 @@ if __name__ == '__main__':
 	# import bootstrapping as B
 	# print B.bootstrap_trunc(fit_pair, target.R, target.M, target.M_err_up, brk_pos, size=10)
 
-
-
-	fig, ax, ax2 = F.plot_basic(result, target, info)
-	for i in [ax, ax2]:
+	ax = F.plot_basic(result, target, info)
+	for i in [ax]:
 		i.axvline(x=brk_R)
 		for b in fit_bound:
 			i.axvline(x=b, linestyle='--')

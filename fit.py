@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import bisect
 import lmfit as lm
 from scipy.special import gamma
+from matplotlib import rc
+rc('font',**{'family':'serif','serif':['Times New Roman'], 'size':18})
 
 def get_b_n(m):
 	#   find sersic b_n coefficient'favoritecolor'
@@ -88,11 +90,11 @@ def fit_bulge_disc(profile, infoDF):
 	fix_params(P, ['BD_ratio', 'deltaRe'], True)
 	fitter = lm.Minimizer(sersic, P, fcn_args=(infoDF.zp, profile.R.values, profile.I.values, profile.I_err.values))
 	fitter.leastsq()
-	sb = sersic(P, infoDF.zp, profile.R.values, profile.I.values, profile.I_err.values, comp=False)
-	A = ((profile.I.values - sb) / profile.I_err.values)
-	print np.sum(A**2.) / (5+len(profile.I.values)), fitter.redchi
-	from scipy import stats
-	print stats.kstest(A, 'norm')
+	# sb = sersic(P, infoDF.zp, profile.R.values, profile.I.values, profile.I_err.values, comp=False)
+	# A = ((profile.I.values - sb) / profile.I_err.values)
+	# print np.sum(A**2.) / (5+len(profile.I.values)), fitter.redchi
+	# from scipy import stats
+	# print stats.kstest(A, 'norm')
 	
 	return fitter
 
@@ -101,9 +103,11 @@ def redchi(y, model, weights, free_params):
 	resid = (y - model / weights) **2.
 	return np.sum(resid) / (len(y) + free_params)
 
-def plot_basic(fit_result, profile, infoDF):
-	fig = plt.figure()
-	ax = fig.add_subplot(211)
+def plot_basic(fit_result, profile, infoDF, ax=None):
+	if ax is None:
+		fig = plt.figure()
+		fig.set_facecolor('white')
+		ax = fig.add_subplot(111)
 	ax.errorbar(profile.R, profile.M, yerr=(profile.M_err_down.values, profile.M_err_up.values), fmt='b.')
 	pltR = np.linspace(0,profile.R.values[-1], 1000)
 	bulge, disc = sersic(fit_result.params, infoDF.zp, pltR, comp=True, show=True)
@@ -114,12 +118,11 @@ def plot_basic(fit_result, profile, infoDF):
 	ax.set_title(str(infoDF.ID) + str(infoDF.cam) + str(infoDF.ax))
 	ax.set_ylim(35,15)
 
-	ax2 = fig.add_subplot(212)
-	bulge, disc = sersic(fit_result.params, infoDF.zp, profile.R.values, comp=True, show=True)
-	ax2.plot(profile.R, (profile.M - convert_mag(bulge + disc, infoDF.zp)) / 1., 'b.')
-	string = r'$\chi^{2}_{\nu} = $%.2f' % fit_result.redchi
-	ax2.text(0.98, 0.98, string, transform=ax2.transAxes, ha='right', va='top')
-	return fig, ax, ax2
+	# bulge, disc = sersic(fit_result.params, infoDF.zp, profile.R.values, comp=True, show=True)
+	# ax2.plot(profile.R, (profile.M - convert_mag(bulge + disc, infoDF.zp)) / 1., 'b.')
+	# string = r'$\chi^{2}_{\nu} = $%.2f' % fit_result.redchi
+	# ax2.text(0.98, 0.98, string, transform=ax2.transAxes, ha='right', va='top')
+	return ax#, ax2
 
 
 if __name__ == '__main__':

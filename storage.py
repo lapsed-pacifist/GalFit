@@ -42,6 +42,7 @@ def import_directory(direct=REP, exclusions='exclusions.txt'):
 	table_list = convert(table_list, infoDF)
 	table_list = get_errors(table_list, infoDF)
 	table_list = convert_I_err(table_list, infoDF)
+	infoDF['mu_crit'] = [sky.find_mu_crit(table, infoDF.loc[i]) for i, table in enumerate(table_list)]
 	return table_list, infoDF
 
 
@@ -78,14 +79,19 @@ def get_errors(table_list, infoDF):
 		elif infoDF.cam[i] == 'mega':
 			t, G = 35., 1.7
 		else: t, G = 1.,1.
-		phot_err = np.sqrt(((T.i_cts + infoDF.sky_level) / 1.) * G)
-		i_err = phot_err * 1. * G
+		phot_err = np.sqrt(((T.i_cts + infoDF.sky_level) / 1.) * G) 
+		i_err = phot_err * 1. 
 		# I_err = (i_err) / (infoDF.scale[i] ** 2.)
 		total_i_err = np.sqrt((i_err**2.) + (T.i_cts_err**2.) + (infoDF.sky_unc**2.))
 		# total_I_err = np.sqrt((I_err **2.) + ((T.i_cts_err / (infoDF.scale[i]**2.)) **2.) + (infoDF.sky_unc[i] / (infoDF.scale[i]**2.)))
 		total_I_err = total_i_err / infoDF.scale[i] / infoDF.scale[i]
+		for i,v in enumerate(T.I):
+			if (total_I_err[i] / v) < 0.2:
+				total_I_err[i] = v *0.2
+
 		T['I_err'] = total_I_err
 		T['i_cts_err_sky'] = total_i_err
+		
 	return table_list
 
 

@@ -7,6 +7,7 @@ import sys
 from scipy.optimize import leastsq
 import time
 import truncation as T
+import matplotlib.pyplot as plt
 
 MAXFEV = 1000
 
@@ -68,16 +69,17 @@ def bootstrap_trunc(P_list, R, M, MW, brk_pos, size=1000, load_bar=False):
 	outer = bootstrap_line(P_list[1], R[brk_pos:], M[brk_pos:], MW[brk_pos:], size, load_bar, 'out')
 	return pd.concat((inner, outer), axis=1)
 
-def sided_std(DF, mean):
-	dev2 = (DF - mean)**2.
-	var = (1./(len(DF)-1)) * dev2.sum(axis=0)
-	return np.sqrt(var)
-
 def find_stats(DF):
 	mean = DF.mean(axis=0)
 	upper = DF[DF >= mean]
 	lower = DF[DF <= mean]
 	return [sided_std(lower, mean), sided_std(upper, mean)], mean
+
+def sided_std(df, mean):
+	dev2 = (df - mean)**2.
+	N = (1./(len(df))) 
+	standard  = np.sqrt(dev2.sum(axis=0) * N)
+	return standard
 
 def average_boot(boot_panel):
 	for i, b in boot_panel.iteritems():
@@ -132,14 +134,14 @@ def change_sky(profile, infoS, sigma=1.):
 	profile['M_err_up'] = abs(Mup - profile.M)
 	return profile
 
-def bootstrap_sky(profile, infoS, truncS, boot_size=50, LoadBar=None):
+def bootstrap_sky(profile, infoS, truncS, fit_pars, boot_size=50, LoadBar=None):
 	r = np.linspace(-1., 1., boot_size)
 	bounds = truncS[['b0', 'b1', 'b2', 'b3']].values
 	for i, sky in enumerate(r):
 		if LoadBar is not None: LoadBar.time()
 		adj_prof = change_sky(profile.copy(), infoS, sigma=sky * infoS.sky_unc)
 		try:
-			pars, brk = T.fit_truncated(adj_prof, infoS, bounds, truncS.brk_R, fix_brk=False)
+			pars, brk = T.fit_truncated(adj_prof, infoS, fit_pars, bounds, truncS.brk_R, fix_brk=False)
 			row = np.append(np.ravel(pars), np.array([brk, sky]))
 		except TypeError:
 			row = np.ones((6)) * np.nan	

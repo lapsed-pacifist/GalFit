@@ -1,19 +1,19 @@
+import pandas as pd
 import numpy as np
+from matplotlib.pyplot import show
 
+def find_stats(DF):
+	mean = DF.mean(axis=0)
+	upper = DF[DF >= mean]
+	lower = DF[DF <= mean]
+	return [sided_std(lower, mean), sided_std(upper, mean)], mean
 
-def bin(x, bins=None, n=None):
-	"""rebins data and produces mask for other arrays
-	Bins is a list of values corresponding to boundaries of the bins (ends have to be included!)"""
-	if bins is None:
-		bins = np.arange(x[0], x[-1], n)
+def sided_std(df, mean):
+	dev2 = (df - mean)**2.
+	N = (1./(len(df))) 
+	standard  = np.sqrt(dev2.sum(axis=0) * N)
+	return standard
 
-	chks = [np.where((x <= x[bins[i+1]]) | x >= x[bins[i]]) for i in range(len(bins)-1)]
-	return chks
-
-
-
-x = np.linspace(0, 20)
-n = 5
-
-print x
-print bin(x, n=n)
+if __name__ == '__main__':
+	a = pd.Series(range(5), index=list('abcde'))
+	a.rename({'a':'aaaa'}, inplace=True)

@@ -10,6 +10,7 @@ import loadbar
 pd.set_option('io.hdf.default_format','table')
 import sys
 import winsound
+import lmfit as lm
 
 def extract_params(p):
 	d = {name: par.value for name, par in p.iteritems()}
@@ -60,13 +61,16 @@ def batch_fit(table_list, infoDF, HDF, boot_size=1000, i_start=0, load_bar=True)
 			sys.stdout.write('fails=%i   ' % trunc_fail)
 		HDF['bootstraps'] = wp
 
-def batch_truncation(table_list, infoDF, truncDF, HDF, boot_size=200, i_start=0, load_bar=True):
+def batch_truncation(table_list, infoDF, truncDF, fitDF, HDF, boot_size=200, i_start=0, load_bar=True):
 	try:
 		if load_bar : L = loadbar.loadbar(len(table_list) * boot_size, boot_size)
 		else: L = None
 		for i,t in enumerate(table_list):
 			index = i + i_start
-			DF_boot = B.bootstrap_sky(t, infoDF.loc[index], truncDF.loc[index], boot_size, L)
+			f = fitDF.loc[index]
+			fP = lm.Parameters()
+			fP.add_many(('MB', f.MB), ('ReB', f.ReB), ('deltaRe', 1., True),('nB', f.nB), ('BD_ratio', f.BD_ratio), ('ReD', f.ReD))
+			DF_boot = B.bootstrap_sky(t, infoDF.loc[index], truncDF.loc[index], fP, boot_size, L)
 			if index == 0:
 				wp = pd.Panel({0:DF_boot})
 			else:
@@ -78,9 +82,10 @@ def batch_truncation(table_list, infoDF, truncDF, HDF, boot_size=200, i_start=0,
 
 if __name__ == '__main__':
 	tables, info = S.import_directory()
-	store_name = 'store_trunc_boot200.h5'
+	store_name = 'fixed_truncations.h5'
 	store = pd.HDFStore(store_name)
-	truncs = pd.HDFStore('store_normal.h5', 'r').truncations
+	truncs = store.truncations
+	fits = store.fits
 	# if len(store.keys()) != 0:
 	# 	print "Warning, store %s already exists! Data will be overwritten!" % (store_name)
 	# 	raw_input("to continue press enter...")
@@ -89,7 +94,7 @@ if __name__ == '__main__':
 	# store['info'] = info
 	# print store.truncations.describe()
 	
-	batch_truncation(tables[:], info, truncs, store, i_start=0, load_bar=True)
+	batch_truncation(tables[:], info, truncs, fits, HDF=store, i_start=0, load_bar=True)
 	print store['trunc_boot']
 
 # print truncs.rename(columns={'inner_M':'mu_inner', 'outer_M':'mu_outer', 'inner_Re':'h_inner', 'outer_Re':'h_outer'})

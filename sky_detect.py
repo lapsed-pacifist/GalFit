@@ -2,6 +2,8 @@ import time
 import storage as S
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font',**{'family':'serif','serif':['Times New Roman'], 'size':18})
 
 def convert_mag(I, zp):
 	return zp - (2.5 * np.log10(I))
@@ -60,35 +62,49 @@ def detect_sky(I):
 	clipped = clip(I[-pos:])
 	return np.mean(clipped), np.std(clipped), pos
 
-def find_mu_crit(profile, infoDF, delta=0.2):
+def find_mu_crit(profile, infoDF, delta=0.1):
 	"""gets the critical SB for a corrected profile, where the +-sigmas
 	differ by delta"""
 	plus, minus = profile.I.values + infoDF.sky_unc, profile.I.values - infoDF.sky_unc
 	diff = np.abs(convert_mag(minus, infoDF.zp) - convert_mag(plus, infoDF.zp))
-	return profile.M.values[diff >  delta][0]
+	crit = profile.M.values[diff >  delta]
+	if len(crit) != 0:
+		return crit[0]
+	else:
+		return infoDF.zp
 
 
 
 if __name__ == '__main__':
 	tables, header = S.import_directory()
-	i=2
+	i=43
 	target, info = tables[i], header.loc[i]
 	print len(tables)
 	A = header.sky - header.sky_level
 	print A.describe()
 	crit = find_mu_crit(target, info)
+	print crit
 
 	# select = [10]
 	# for i in select:
-	# 	target, info = tables[i], header.loc[i]
-	# 	mean, std, cutoff = detect_sky(target.i_cts.values)
-	# 	# print mean, std, cutoff 
+	target, info = tables[i], header.loc[i]
+	# mean, std, cutoff = detect_sky(target.i_cts.values)
+	# print mean, std, cutoff 
+	mean, std, cutoff = info[['sky_level', 'sky_unc', 'sky_pos']]
 
-	plt.plot(target.R.values, target.M.values, 'b.')
-	plt.axhline(y=crit)
-	# plt.axhline(y=0)
-	# plt.axhline(y=0-std)
-	# plt.axhline(y=0+std)
-	# plt.axvline(x=target.R.values[-cutoff])
-	# plt.title(str(info.ID)+info.cam+str(info.ax))
+	fig = plt.figure()
+	fig.set_facecolor('white')
+	ax = fig.add_subplot(111)
+	ax.plot(target.R.values, target.i_cts.values, 'b.')
+	# plt.axhline(y=crit)
+	# plt.axhline(y=convert_mag(info.sky_unc*3., info.zp), linestyle='--')
+	
+	ax.axhline(y=0)
+	ax.axhline(y=0-std, linestyle='--')
+	ax.axhline(y=0+std, linestyle='--')
+	ax.fill_between(target.R.values, -std, std, color='r', alpha=0.1)
+	ax.axvline(x=target.R.values[-cutoff])
+	ax.set_title(str(info.ID)+info.cam+str(info.ax))
+	ax.set_ylabel('I [counts]')
+	ax.set_xlabel('R [arcsec]')
 	plt.show()

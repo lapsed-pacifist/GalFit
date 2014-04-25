@@ -1,5 +1,8 @@
 from scipy.stats import norm
 from numpy import sqrt
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font',**{'family':'serif','serif':['Times New Roman'], 'size':17})
 def binP(N, p, x1, x2):
 	p = float(p)
 	q = p/(1-p)
@@ -69,9 +72,11 @@ def calcBin(vx, vN, vCL = 95):
 							vsL = v
 							v = (v+vsH)/2
 			ul = v
+
 	return (dl, ul)
 
 def wilson(vx, vN, vCL=0.95):
+	f = vx / vN
 	a = 1-vCL
 	p = 1 - (a/2.)
 	z = norm.ppf(p)
@@ -79,17 +84,33 @@ def wilson(vx, vN, vCL=0.95):
 	X = z * sqrt((phat * (1 - phat) / vN) + (z * z / 4 / vN/ vN))
 	invpre = 1 + (z * z / vN)
 	brak_pre = phat + (z * z / (2 * vN))
-	return (brak_pre - X) / invpre, (brak_pre + X) / invpre
+	return abs(f - ((brak_pre - X) / invpre)), abs(((brak_pre + X) / invpre) - f)
 
 
 if __name__ == '__main__':
-	a,b,c = 162., 77., 4.
-	import numpy as np
-	N = np.sum([a,b,c])
-	percentages = np.array([a,b,c]) / N
-
-	confs = [wilson(i, N) for i in (a,b,c)]
-	confs = [(percentages[ind] - i[0], i[1] - percentages[ind]) for ind, i in enumerate(confs)]
+	# import numpy as np
+	# erwin = [0.458*55., 0., (1-0.458)*55.]
+	# erwinN = 55.
+	# mineN = 66.
+	# mine = [16., 1., 49.]
+	# mine_errs = [wilson(i, mineN, 0.68) for i in mine]
+	# erwin_errs = [wilson(i, erwinN, 0.68) for i in erwin]
 	
-	for i, C in enumerate(confs):
-		print " %s: %.2f + %.2f - %.2f" % (str(i), percentages[i], confs[i][1], confs[i][0])	
+	# fig = plt.figure()
+	# fig.set_facecolor('white')
+	# ax = fig.add_subplot(111)
+	# ind = np.arange(3)
+	# width = 0.4
+	# rects1 = ax.bar(ind, np.array(mine)/mineN, width, color='0.8', yerr=zip(*mine_errs), ecolor='0.1', label='This Study')
+	# rects2 = ax.bar(ind+width, np.array(erwin)/erwinN, width, color='0.4', yerr=zip(*erwin_errs), ecolor='0.1', label='Erwin 2012')
+	# for b in rects2:
+	# 	b.set_hatch('\\')
+	# ax.set_xticks(ind+width)
+	# ax.set_xticklabels( ('Type I', 'Type II', 'Type III') )
+	# offset = 0.2
+	# ax.set_xlim([ax.get_xlim()[0]-offset, ax.get_xlim()[1]])
+	# ax.set_ylim([0,0.8])
+	# ax.set_ylabel('Fraction of S0')
+	# ax.legend(loc='best', prop={'size':16})
+	# plt.show()
+	print wilson(4, 7, 0.68)
