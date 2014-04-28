@@ -92,22 +92,22 @@ def define_boundaries(profile, window, chunk_size=2, clip_sig=1.):
 		outer_bound = med_Rs[brk_pos:][outer_bound[0][0]]
 	except IndexError:
 		outer_bound = med_Rs[-1]
-	# fig = plt.figure()
-	# fig.set_facecolor('white')
-	# ax = fig.add_subplot(111)
-	# ax.plot(med_Rs, gradients, 'b.')
-	# ax.axvline(R_break, linestyle='-')
-	# colours = ['r', 'g']
-	# rs = (med_Rs[0], R_break, med_Rs[-1])
-	# for i in range(2):
-	# 	y=[means[i]+stds[i], means[i]-stds[i], means[i]]
-	# 	ax.plot(rs[i:i+2], [y[0]]*2, linestyle='--', color=colours[i])
-	# 	ax.plot(rs[i:i+2], [y[1]]*2, linestyle='--', color=colours[i])
-	# 	ax.plot(rs[i:i+2], [y[2]]*2, linestyle='--', color=colours[i])
-	# 	ax.fill_between(rs[i:i+2], y[0], y[1], alpha=0.1, color=colours[i])
-	# ax.set_ylabel('local h [arcsec]')
-	# ax.set_xlabel('R [arcsec]')
-	# plt.show()
+	fig = plt.figure()
+	fig.set_facecolor('white')
+	ax = fig.add_subplot(111)
+	ax.plot(med_Rs, gradients, 'b.')
+	ax.axvline(R_break, linestyle='-')
+	colours = ['r', 'g']
+	rs = (med_Rs[0], R_break, med_Rs[-1])
+	for i in range(2):
+		y=[means[i]+stds[i], means[i]-stds[i], means[i]]
+		ax.plot(rs[i:i+2], [y[0]]*2, linestyle='--', color=colours[i])
+		ax.plot(rs[i:i+2], [y[1]]*2, linestyle='--', color=colours[i])
+		ax.plot(rs[i:i+2], [y[2]]*2, linestyle='--', color=colours[i])
+		ax.fill_between(rs[i:i+2], y[0], y[1], alpha=0.1, color=colours[i])
+	ax.set_ylabel('local h [arcsec]')
+	ax.set_xlabel('R [arcsec]')
+	plt.show()
 	R_window = [profile.R.values[w] for w in window]
 	return [R_window[0], inner_bound, outer_bound, R_window[1]], R_break, gradients, med_Rs
 
@@ -198,7 +198,7 @@ def fit_truncation(profile, infoDF, fit_result):
 if __name__ == '__main__':
 	tables, header = S.import_directory()
 	# N = header[header.ID == 1237665440442089583].index[2]
-	N = 68
+	N = 90
 	target, info = tables[N], header.loc[N]
 	print info.ID
 	result = F.fit_bulge_disc(target, info)
@@ -210,13 +210,13 @@ if __name__ == '__main__':
 	# import bootstrapping as B
 	# print B.bootstrap_trunc(fit_pair, target.R, target.M, target.M_err_up, brk_pos, size=10)
 
-	ax = F.plot_basic(result, target, info)
-	for i in [ax]:
-		i.axvline(x=brk_R)
-		for b in fit_bound:
-			i.axvline(x=b, linestyle='--')
-	plot_truncation(ax, fit_pair, brk_R)
-	ax.set_xlim(target.R.values[0], target.R.values[-1])
-	plt.show()
+	# ax = F.plot_basic(result, target, info)
+	# for i in [ax]:
+	# 	i.axvline(x=brk_R)
+	# 	for b in fit_bound:
+	# 		i.axvline(x=b, linestyle='--')
+	# plot_truncation(ax, fit_pair, brk_R)
+	# ax.set_xlim(target.R.values[0], target.R.values[-1])
+	# plt.show()
 
 

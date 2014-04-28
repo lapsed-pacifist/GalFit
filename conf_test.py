@@ -88,29 +88,33 @@ def wilson(vx, vN, vCL=0.95):
 
 
 if __name__ == '__main__':
-	# import numpy as np
-	# erwin = [0.458*55., 0., (1-0.458)*55.]
-	# erwinN = 55.
-	# mineN = 66.
-	# mine = [16., 1., 49.]
-	# mine_errs = [wilson(i, mineN, 0.68) for i in mine]
-	# erwin_errs = [wilson(i, erwinN, 0.68) for i in erwin]
+	import numpy as np
+	erwin = [0.458*24., 0., (1-0.458)*24.]
+	erwinN = 24.
+	fieldN = 55.
+	mineN = 66.
+	mine = [16., 1., 49.]
+	field = [0.26*55., 0.28*55., (1.-(0.28+0.26))*55.]
+	mine_errs = [wilson(i, mineN, 0.68) for i in mine]
+	erwin_errs = [wilson(i, erwinN, 0.68) for i in erwin]
+	field_errs = [wilson(i, fieldN, 0.68) for i in field]
 	
-	# fig = plt.figure()
-	# fig.set_facecolor('white')
-	# ax = fig.add_subplot(111)
-	# ind = np.arange(3)
-	# width = 0.4
-	# rects1 = ax.bar(ind, np.array(mine)/mineN, width, color='0.8', yerr=zip(*mine_errs), ecolor='0.1', label='This Study')
-	# rects2 = ax.bar(ind+width, np.array(erwin)/erwinN, width, color='0.4', yerr=zip(*erwin_errs), ecolor='0.1', label='Erwin 2012')
-	# for b in rects2:
-	# 	b.set_hatch('\\')
-	# ax.set_xticks(ind+width)
-	# ax.set_xticklabels( ('Type I', 'Type II', 'Type III') )
-	# offset = 0.2
-	# ax.set_xlim([ax.get_xlim()[0]-offset, ax.get_xlim()[1]])
-	# ax.set_ylim([0,0.8])
-	# ax.set_ylabel('Fraction of S0')
-	# ax.legend(loc='best', prop={'size':16})
-	# plt.show()
-	print wilson(4, 7, 0.68)
+	fig = plt.figure()
+	fig.set_facecolor('white')
+	ax = fig.add_subplot(111)
+	ind = np.arange(3)
+	width = 0.8
+	rects1 = ax.bar(ind, np.array(mine)/mineN, width/3., color='0.8', yerr=zip(*mine_errs), ecolor='0.1', label='Coma (This Study)')
+	rects2 = ax.bar(ind + (width/3.), np.array(erwin)/erwinN, width/3., color='0.8', yerr=zip(*erwin_errs), ecolor='0.1', label='Erwin Virgo')
+	rects3 = ax.bar(ind+(2*width/3.), np.array(field)/fieldN, width/3., color='0.4', yerr=zip(*field_errs), ecolor='0.1', label='Erwin Field')
+	for b in rects2:
+		b.set_hatch('\\')
+	ax.set_xticks(ind+(width/2.))
+	ax.set_xticklabels( ('Type I', 'Type II', 'Type III') )
+	offset = 0.2
+	ax.set_xlim([ax.get_xlim()[0]-offset, ax.get_xlim()[1]])
+	ax.set_ylim([0,0.8])
+	ax.set_ylabel('Fraction of S0')
+	ax.legend(loc='best', prop={'size':16})
+	print mine_errs
+	plt.show()

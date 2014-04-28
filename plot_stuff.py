@@ -217,7 +217,7 @@ if __name__ == '__main__':
 	trunc = store_trunc.truncations
 	fit = store.fits
 	main = store_trunc.mainDF.reset_index()
-	m = main[main.upbended == True].iloc[9]
+	m = main[main.upbended == True].iloc[36]
 	print m
 
 	cam_name = 'mega'

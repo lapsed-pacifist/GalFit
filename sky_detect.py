@@ -104,7 +104,7 @@ if __name__ == '__main__':
 	ax.axhline(y=0+std, linestyle='--')
 	ax.fill_between(target.R.values, -std, std, color='r', alpha=0.1)
 	ax.axvline(x=target.R.values[-cutoff])
-	ax.set_title(str(info.ID)+info.cam+str(info.ax))
+	# ax.set_title(str(info.ID)+info.cam+str(info.ax))
 	ax.set_ylabel('I [counts]')
 	ax.set_xlabel('R [arcsec]')
 	plt.show()

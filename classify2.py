@@ -8,6 +8,7 @@ from scipy.special import gammainc, gamma
 from fit import convert_I
 import conf_test
 from  scipy.optimize import leastsq
+from scipy.stats import pearsonr
 DIR = 'repository'
 
 def get_stats_dict(bootP):
@@ -68,7 +69,7 @@ def correl(X, Y, Xerr, Yerr):
 	pars = leastsq(straight, [1.,1.], args=(X, Y, Yerr))[0]
 	return pars[0]
 
-def graph_par(totalDF, x, y, bins=None, ax=None, err=True, truncated_only=False):
+def graph_par(totalDF, x, y, bins=None, ax=None, err=True, truncated_only=False, fmt='b.', P=True):
 	if truncated_only:
 		t = totalDF[totalDF.untruncated != False]
 	else:
@@ -84,22 +85,24 @@ def graph_par(totalDF, x, y, bins=None, ax=None, err=True, truncated_only=False)
 	if y+'_low' in t.columns:
 		yerr = (t[y+'_low'], t[y+'_high'])
 	if err:
-		ax.errorbar(t[x], t[y], yerr=yerr, xerr=xerr, fmt='b.', ecolor='0.75')
+		ax.errorbar(t[x], t[y], yerr=yerr, xerr=xerr, fmt=fmt, ecolor='0.75')
 	else:
 		ax.plot(t[x], t[y], 'b.')
-	ax.set_ylabel(y)
-	ax.set_xlabel(x)
-	mask = ~t[x].isnull() & ~t[y].isnull()
-	if xerr is not None: mask = mask & ~xerr[0].isnull() & ~xerr[1].isnull()
-	if yerr is not None: mask = mask & ~yerr[0].isnull() & ~yerr[1].isnull()
-	X = t[x][mask].values
-	Y = t[y][mask].values
-	# P = correl(X,Y, xerr, yerr)
-	# ax.text(0.98, 0.98, 'P = %.2f' % P[0], transform=ax.transAxes)
+	replace = {'BD_ratio':'$B/D$', 'MB':'$\mu_e$[mag]', 'ReB':'$R_{e}$[arcsec]', 'nB':'$n$', 'M1':'$\mu_{0, inner}$[mag]', 'M2':'$\mu_{0, outer}$[mag]',\
+	'h1':'$h_1$[arcsec]', 'h2':'$h_2$[arcsec]', 'brk_R':'$R_{brk}$[arcsec]', 'strength':'$S_h$', 'r_clust':'$r_{clust}$[arcsec]'}
+	ax.set_ylabel(replace[y])
+	ax.set_xlabel(replace[x])
 	if fig is None:
 		return ax
 	else:
 		return f, ax
+
+def add_corr_coeff(DF, x, y, ax, text='', pos_y=0):
+	mask = ~DF[x].isnull() & ~DF[y].isnull()
+	X = DF[x][mask].values
+	Y = DF[y][mask].values
+	P = pearsonr(X, Y)
+	ax.text(0.98, 0.98-pos_y, '$P_{%s} = %.2f$' % (text, P[0]), transform=ax.transAxes, ha='right', va='top')
 
 def new_BD_ratio(P, zp):
 	MB, ReB, nB, M1, M2, h1, h2, R_brk = P.values
@@ -154,17 +157,24 @@ if __name__ == '__main__':
 	# print total.BD_ratio.iloc[0]
 	# print get_BD_ratios(total.iloc[0], header.zp[0])
 	
-	# graph_par(total, 'r_clust', 'strength', err=True, truncated_only=True)
 	fig = plt.figure()	
 	fig.set_facecolor('white')
+	x, y = 'r_clust', 'h2'
+	ax1 = fig.add_subplot(111)
+
 	t = total[(total.h1 > 0) & (total.untruncated==True)]
-	x, y = 'r_clust', 'brk_R'
-	graph_par(t, x, y, ax=fig.add_subplot(121))
+	add_corr_coeff(t, x, y, ax1, text='type-I', pos_y=0)
+	graph_par(t, x, y, ax=ax1, P=False)
+
 	t = total[(total.h1 > 0) & (total.untruncated==False)]
-	graph_par(t, x, y, ax=fig.add_subplot(122))
+	graph_par(t, x, y, ax=ax1, fmt='r.', P=True)
+	add_corr_coeff(t, x, y, ax1, text='type-III', pos_y=0.05)
+
+	t = total[(total.h1 > 0)]
+	add_corr_coeff(t, x, y, ax1, text='total', pos_y=0.1)
 
 	# t = total[(total.h1 > 0) & (total.untruncated==False)]
-	# t.MB.hist(ax=fig.add_subplot(121))
+	# t[['MB','ReB', 'nB', 'ReD']].hist()
 	# plt.title('truncated')
 
 	# t = total[(total.h1 > 0) & (total.untruncated==True)]
